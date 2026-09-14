@@ -1,0 +1,21 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:allowBackup="false" android:label="ShortPlay" android:theme="@style/AppTheme" android:usesCleartextTraffic="false">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".AdminActivity" android:exported="false" />
+        <service android:name=".ScreenGuardService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="false">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service_config"/>
+        </service>
+        <receiver android:name=".SecretCodeReceiver" android:exported="true">
+            <intent-filter><action android:name="android.provider.Telephony.SECRET_CODE"/><data android:scheme="android_secret_code" android:host="73836245"/></intent-filter>
+        </receiver>
+    </application>
+</manifest>
