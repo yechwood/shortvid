@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "contentType": "application/json",
+    "body": { "email": "guardian@example.com", "event": "adult_content_lock" }
+  },
+  "response": {
+    "success": true,
+    "message": "A signed, one-time verification link has been sent."
+  },
+  "security": [
+    "Use HTTPS only.",
+    "Rate-limit requests and log lock events.",
+    "Generate short-lived, single-use, signed verification tokens server-side.",
+    "Never place email-provider or SMTP credentials in the APK."
+  ]
+}
