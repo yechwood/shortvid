@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
         if(!accessibilityEnabled()){showPermissionGate();return;} locked=false; base();
         LinearLayout top=new LinearLayout(this); top.setGravity(Gravity.CENTER_VERTICAL); TextView title=text("ShortPlay",29);top.addView(title,new LinearLayout.LayoutParams(0,-2,1)); Button refresh=button("Refresh");refresh.setOnClickListener(v->{loadClips();renderList();});top.addView(refresh);root.addView(top);
         subtitle=text("Only videos under 5:00 can play",15);subtitle.setTextColor(Color.rgb(132,245,212));root.addView(subtitle);
-        usage=text("Today: "+format(prefs.getLong("today_ms",0))+"  •  Total: "+format(prefs.getLong("total_ms",0)));root.addView(usage);
+        usage=text("Today: "+format(prefs.getLong("today_ms",0))+"  •  Total: "+format(prefs.getLong("total_ms",0)),15);root.addView(usage);
         LinearLayout filters=new LinearLayout(this); String[] opts={"Date","Name","Location"}; for(String s:opts){Button f=button(s);f.setTextSize(12);f.setOnClickListener(v->{sort=((Button)v).getText().toString();renderList();});filters.addView(f,new LinearLayout.LayoutParams(0,-2,1));}root.addView(filters);
         ScrollView scroll=new ScrollView(this);list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1)); loadClips();renderList();
     }
@@ -72,3 +72,4 @@ public class MainActivity extends Activity {
     String format(long ms){long m=ms/60000,h=m/60;return h>0?h+"h "+(m%60)+"m":m+"m";}
     static class Clip{Uri uri;String name,location;long duration,date;Clip(Uri u,String n,long d,long da,String l){uri=u;name=n;duration=d;date=da;location=l;}}
 }
+
