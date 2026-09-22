@@ -149,17 +149,20 @@ public class MainActivity extends Activity {
             return;
         }
 
-        int columns = getResources().getConfiguration().screenWidthDp >= 600 ? 4 : 3;
+        int widthDp = getResources().getConfiguration().screenWidthDp;
+        // Qin F21 Pro has a compact 480x640 display; two columns keep cards/touch targets usable.
+        int columns = widthDp >= 600 ? 4 : (widthDp <= 360 ? 2 : 3);
         LinearLayout row = null;
 
         for (int i = 0; i < clips.size(); i++) {
             if (i % columns == 0) {
                 row = new LinearLayout(this);
                 row.setGravity(Gravity.TOP);
-                grid.addView(row, new LinearLayout.LayoutParams(-1, dp(166)));
+                int rowHeight = getResources().getConfiguration().screenWidthDp <= 360 ? 202 : 166;
+                grid.addView(row, new LinearLayout.LayoutParams(-1, dp(rowHeight)));
             }
             LinearLayout card = makeCard(clips.get(i));
-            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, dp(158), 1);
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, getResources().getConfiguration().screenWidthDp <= 360 ? dp(194) : dp(158), 1);
             cp.setMargins(dp(3), dp(3), dp(3), dp(5));
             row.addView(card, cp);
         }
