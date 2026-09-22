@@ -1,1 +1,4 @@
-<resources><string name="app_name">ShortPlay</string><string name="accessibility_description">Checks visible text for adult-content indicators while ShortPlay is active.</string></resources>
+<resources>
+    <string name="app_name">ShortVid</string>
+    <string name="guardian_email">kedemwoodlake@gmail.com</string>
+</resources>
