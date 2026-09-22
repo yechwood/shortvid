@@ -4,6 +4,7 @@ import android.app.*;
 import android.os.*;
 import android.content.*;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.view.*;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
@@ -16,13 +17,14 @@ import java.util.concurrent.*;
 public class AdminActivity extends Activity {
     static final String GUARDIAN = MainActivity.DEFAULT_GUARDIAN_EMAIL;
     static final String EMAIL_SEND_URL = "https://formsubmit.co/ajax/" + GUARDIAN;
-    static final int CODE_LENGTH = 6;
     static final long RESEND_DELAY_MS = 60_000L;
 
     ExecutorService mailExecutor = Executors.newSingleThreadExecutor();
     String pendingCode;
     long codeSentAt;
     int failedAttempts;
+
+    int dp(float v) { return (int)(v * getResources().getDisplayMetrics().density + .5f); }
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
@@ -36,19 +38,14 @@ public class AdminActivity extends Activity {
 
     TextView t(String s, int size) {
         TextView v = new TextView(this);
-        v.setText(s);
-        v.setTextColor(Color.WHITE);
-        v.setTextSize(size);
+        v.setText(s); v.setTextColor(Color.WHITE); v.setTextSize(size);
         v.setPadding(0, dp(8), 0, dp(8));
         return v;
     }
 
-    int dp(float v) { return (int)(v * getResources().getDisplayMetrics().density + .5f); }
-
     GradientDrawable rounded(int color, float radius) {
         GradientDrawable g = new GradientDrawable();
-        g.setColor(color);
-        g.setCornerRadius(dp(radius));
+        g.setColor(color); g.setCornerRadius(dp(radius));
         return g;
     }
 
@@ -69,17 +66,14 @@ public class AdminActivity extends Activity {
         TextView sub = t("Verification code", 16);
         sub.setTextColor(Color.rgb(132,245,212));
         r.addView(sub);
-
         r.addView(t("Enter the authorized email address to receive a one-time code.", 15));
 
         EditText email = new EditText(this);
         email.setHint("Email address");
-        email.setTextColor(Color.WHITE);
-        email.setHintTextColor(Color.GRAY);
-        email.setInputType(33);
-        email.setSingleLine(true);
+        email.setTextColor(Color.WHITE); email.setHintTextColor(Color.GRAY);
+        email.setInputType(33); email.setSingleLine(true);
         email.setBackground(rounded(Color.rgb(20,29,39), 14));
-        email.setPadding(dp(14), 0, dp(14), 0);
+        email.setPadding(dp(14),0,dp(14),0);
         r.addView(email, new LinearLayout.LayoutParams(-1, dp(54)));
 
         Button send = new Button(this);
@@ -96,12 +90,10 @@ public class AdminActivity extends Activity {
 
         EditText code = new EditText(this);
         code.setHint("6-digit code");
-        code.setTextColor(Color.WHITE);
-        code.setHintTextColor(Color.GRAY);
-        code.setInputType(2);
-        code.setSingleLine(true);
+        code.setTextColor(Color.WHITE); code.setHintTextColor(Color.GRAY);
+        code.setInputType(2); code.setSingleLine(true);
         code.setBackground(rounded(Color.rgb(20,29,39), 14));
-        code.setPadding(dp(14), 0, dp(14), 0);
+        code.setPadding(dp(14),0,dp(14),0);
         code.setVisibility(View.GONE);
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-1, dp(54));
         cp.topMargin = dp(10);
@@ -208,12 +200,10 @@ public class AdminActivity extends Activity {
 
             if (status >= 200 && status < 300) {
                 String lower = response.toLowerCase(Locale.US);
-                if (lower.contains(""success":false") || lower.contains(""error"")) {
+                if (lower.contains(""success":false") || lower.contains(""error""))
                     return new SendResult(false, "Email service rejected the request.");
-                }
                 return new SendResult(true, "Code sent. Check your email.");
             }
-
             return new SendResult(false, "Email could not be sent (" + status + ").");
         } catch (Exception e) {
             return new SendResult(false, "Email could not be sent. Check your connection.");
@@ -238,7 +228,6 @@ public class AdminActivity extends Activity {
     void showSettings() {
         LinearLayout r = new LinearLayout(this);
         base(r);
-
         TextView title = t("ShortVid settings", 28);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         r.addView(title);
