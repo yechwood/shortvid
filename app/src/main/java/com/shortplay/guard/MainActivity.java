@@ -44,7 +44,9 @@ public class MainActivity extends Activity {
 
     @Override public void onResume() {
         super.onResume();
-        if (prefs != null) showHome();
+        // Do not rebuild the entire gallery here. Android can call onResume
+        // repeatedly when dialogs/permissions return, which previously caused
+        // the gallery to be loaded and appended again.
     }
 
     int dp(float v) {
@@ -91,7 +93,7 @@ public class MainActivity extends Activity {
 
         root.addView(header);
 
-        TextView sub = text("Your camera videos", 14);
+        TextView sub = text("Photos & videos", 14);
         sub.setTextColor(Color.rgb(160,174,184));
         root.addView(sub, new LinearLayout.LayoutParams(-1, dp(30)));
 
@@ -109,6 +111,9 @@ public class MainActivity extends Activity {
     }
 
     void loadClips() {
+        // Always replace the current in-memory snapshot rather than append to it.
+        media.clear();
+
         String[] permissions = Build.VERSION.SDK_INT >= 33
                 ? new String[]{Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO}
                 : new String[]{Manifest.permission.READ_EXTERNAL_STORAGE};
@@ -284,8 +289,6 @@ public class MainActivity extends Activity {
 
     void play(Clip c) {
         final long limit = getMaxMs();
-
-        // Hard preflight: no player is constructed before the duration and screening gate pass.
         if (c.duration <= 0 || c.duration > limit) {
             toast("This video is over the " + format(limit) + " limit.");
             return;
@@ -352,7 +355,6 @@ public class MainActivity extends Activity {
         playerDialog.setOnDismissListener(d -> releasePlayer());
         playerDialog.show();
 
-        // Only after the preflight gate has passed do we initialize ExoPlayer.
         exoPlayer = new ExoPlayer.Builder(this).build();
         pv.setPlayer(exoPlayer);
         exoPlayer.setMediaItem(MediaItem.fromUri(c.uri));
@@ -392,7 +394,6 @@ public class MainActivity extends Activity {
             float x = e.getX();
             long now = SystemClock.elapsedRealtime();
 
-            // Subtle double-tap seeking, with the normal Media3 seek bar as the primary seek UI.
             if (now - lastTap < 320 && Math.abs(x - lastTapX) < dp(80)) {
                 if (exoPlayer != null) {
                     long jump = 10_000L;
