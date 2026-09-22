@@ -13,7 +13,6 @@ import android.net.Uri;
 import android.view.*;
 import android.widget.*;
 import android.media.MediaMetadataRetriever;
-import android.media.AudioManager;
 import java.util.*;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
@@ -36,7 +35,6 @@ public class MainActivity extends Activity {
     boolean gestureMoved;
     long lastTap;
     float lastTapX;
-    boolean controlsTapPending;
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
@@ -132,12 +130,8 @@ public class MainActivity extends Activity {
                 MediaStore.Video.Media.DATE_MODIFIED + " DESC")) {
             if (c != null) while (c.moveToNext()) {
                 long id = c.getLong(0);
-                clips.add(new Clip(
-                        ContentUris.withAppendedId(base, id),
-                        c.getString(1),
-                        c.getLong(2),
-                        c.getLong(3),
-                        c.getString(4) == null ? "" : c.getString(4),
+                clips.add(new Clip(ContentUris.withAppendedId(base, id), c.getString(1),
+                        c.getLong(2), c.getLong(3), c.getString(4) == null ? "" : c.getString(4),
                         c.getInt(5), c.getInt(6)));
             }
         } catch (Exception ignored) {}
@@ -223,7 +217,7 @@ public class MainActivity extends Activity {
     void play(Clip c) {
         final long limit = getMaxMs();
 
-        // Authoritative preflight. No media player is constructed before this passes.
+        // Hard preflight: no player is constructed before the duration and screening gate pass.
         if (c.duration <= 0 || c.duration > limit) {
             toast("This video is over the " + format(limit) + " limit.");
             return;
@@ -232,7 +226,6 @@ public class MainActivity extends Activity {
         Dialog checking = new Dialog(this);
         TextView t = text("Checking video…", 15);
         t.setGravity(Gravity.CENTER);
-        t.setTextColor(Color.WHITE);
         t.setPadding(dp(30), dp(24), dp(30), dp(24));
         t.setBackground(rounded(Color.rgb(20,29,39), 20));
         checking.setContentView(t);
@@ -277,11 +270,11 @@ public class MainActivity extends Activity {
 
         gesturePill = text("", 13);
         gesturePill.setGravity(Gravity.CENTER);
-        gesturePill.setTextColor(Color.WHITE);
         gesturePill.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        gesturePill.setBackground(rounded(Color.argb(215, 25,31,39), 20));
+        gesturePill.setBackground(rounded(Color.argb(215,25,31,39), 20));
         gesturePill.setVisibility(View.GONE);
-        FrameLayout.LayoutParams gp = new FrameLayout.LayoutParams(dp(150), dp(44), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        FrameLayout.LayoutParams gp = new FrameLayout.LayoutParams(dp(150), dp(44),
+                Gravity.TOP | Gravity.CENTER_HORIZONTAL);
         gp.setMargins(0, dp(42), 0, 0);
         outer.addView(gesturePill, gp);
 
@@ -291,7 +284,7 @@ public class MainActivity extends Activity {
         playerDialog.setOnDismissListener(d -> releasePlayer());
         playerDialog.show();
 
-        // The screening gate has passed. Only now is ExoPlayer initialized.
+        // Only after the preflight gate has passed do we initialize ExoPlayer.
         exoPlayer = new ExoPlayer.Builder(this).build();
         pv.setPlayer(exoPlayer);
         exoPlayer.setMediaItem(MediaItem.fromUri(c.uri));
@@ -331,12 +324,14 @@ public class MainActivity extends Activity {
             float x = e.getX();
             long now = SystemClock.elapsedRealtime();
 
-            // Modern double-tap seeking: left/right thirds, 10 seconds.
+            // Subtle double-tap seeking, with the normal Media3 seek bar as the primary seek UI.
             if (now - lastTap < 320 && Math.abs(x - lastTapX) < dp(80)) {
                 if (exoPlayer != null) {
                     long jump = 10_000L;
-                    if (x < pv.getWidth()/2f) exoPlayer.seekTo(Math.max(0, exoPlayer.getCurrentPosition()-jump));
-                    else exoPlayer.seekTo(Math.min(exoPlayer.getDuration(), exoPlayer.getCurrentPosition()+jump));
+                    if (x < pv.getWidth()/2f)
+                        exoPlayer.seekTo(Math.max(0, exoPlayer.getCurrentPosition()-jump));
+                    else
+                        exoPlayer.seekTo(Math.min(exoPlayer.getDuration(), exoPlayer.getCurrentPosition()+jump));
                     showGesturePill(x < pv.getWidth()/2f ? "−10 seconds" : "+10 seconds");
                 }
                 lastTap = 0;
@@ -382,33 +377,28 @@ public class MainActivity extends Activity {
     }
 
     String format(long ms) {
-        long sec = Math.max(0, ms/1000), min = sec/60, h = min/60;
+        long sec = Math.max(0,ms/1000), min = sec/60, h = min/60;
         if (h > 0) return h + "h " + (min%60) + "m";
         return min + "m";
     }
 
     String formatDuration(long ms) {
-        long sec = Math.max(0, ms/1000), m = sec/60;
+        long sec = Math.max(0,ms/1000), m = sec/60;
         return String.format(Locale.US, "%d:%02d", m%60, sec%60);
     }
 
-    void toast(String s) {
-        Toast.makeText(this, s, Toast.LENGTH_LONG).show();
-    }
+    void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_LONG).show(); }
 
-    @Override public void onRequestPermissionsResult(int r, String[] p, int[] g) {
+    @Override public void onRequestPermissionsResult(int r,String[] p,int[] g) {
         super.onRequestPermissionsResult(r,p,g);
         if (r == 7 && g.length > 0 && g[0] == PackageManager.PERMISSION_GRANTED) {
-            loadClips();
-            render();
+            loadClips(); render();
         }
     }
 
     static class Clip {
-        Uri uri; String name, location;
-        long duration, date;
-        int width, height;
-        Clip(Uri u, String n, long d, long da, String l, int w, int h) {
+        Uri uri; String name, location; long duration, date; int width, height;
+        Clip(Uri u,String n,long d,long da,String l,int w,int h) {
             uri=u; name=n; duration=d; date=da; location=l; width=w; height=h;
         }
     }
