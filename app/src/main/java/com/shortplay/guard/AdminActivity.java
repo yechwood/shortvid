@@ -9,19 +9,20 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
 import java.io.*;
 import java.net.*;
+import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.*;
 
 public class AdminActivity extends Activity {
     static final String GUARDIAN = MainActivity.DEFAULT_GUARDIAN_EMAIL;
-    static final String EMAIL_SEND_URL = "https://formsubmit.co/" + GUARDIAN;
+    static final String EMAIL_SEND_URL = "https://formsubmit.co/ajax/" + GUARDIAN;
     static final int CODE_LENGTH = 6;
     static final long RESEND_DELAY_MS = 60_000L;
 
     ExecutorService mailExecutor = Executors.newSingleThreadExecutor();
     String pendingCode;
-    long codeSentAt = 0L;
-    int failedAttempts = 0;
+    long codeSentAt;
+    int failedAttempts;
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
@@ -33,176 +34,261 @@ public class AdminActivity extends Activity {
         super.onDestroy();
     }
 
-    TextView t(String s,int size){
-        TextView v=new TextView(this);
-        v.setText(s);v.setTextColor(Color.WHITE);v.setTextSize(size);v.setPadding(0,12,0,12);
+    TextView t(String s, int size) {
+        TextView v = new TextView(this);
+        v.setText(s);
+        v.setTextColor(Color.WHITE);
+        v.setTextSize(size);
+        v.setPadding(0, dp(8), 0, dp(8));
         return v;
     }
 
-    void base(LinearLayout r){
-        r.setOrientation(LinearLayout.VERTICAL);
-        r.setPadding(36,42,36,30);
-        r.setBackgroundColor(Color.rgb(9,19,28));
+    int dp(float v) { return (int)(v * getResources().getDisplayMetrics().density + .5f); }
+
+    GradientDrawable rounded(int color, float radius) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color);
+        g.setCornerRadius(dp(radius));
+        return g;
     }
 
-    void showAuthorization(){
-        LinearLayout r=new LinearLayout(this);base(r);
-        r.addView(t("Settings authorization",28));
-        r.addView(t("Enter the authorized email, then request a one-time code. The code is sent to the mailbox and must be entered here.",16));
+    void base(LinearLayout r) {
+        r.setOrientation(LinearLayout.VERTICAL);
+        r.setPadding(dp(28), dp(36), dp(28), dp(28));
+        r.setBackgroundColor(Color.rgb(7,13,20));
+    }
 
-        EditText email=new EditText(this);
+    void showAuthorization() {
+        LinearLayout r = new LinearLayout(this);
+        base(r);
+
+        TextView title = t("Settings", 30);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        r.addView(title);
+
+        TextView sub = t("Verification code", 16);
+        sub.setTextColor(Color.rgb(132,245,212));
+        r.addView(sub);
+
+        r.addView(t("Enter the authorized email address to receive a one-time code.", 15));
+
+        EditText email = new EditText(this);
         email.setHint("Email address");
-        email.setTextColor(Color.WHITE);email.setHintTextColor(Color.GRAY);
+        email.setTextColor(Color.WHITE);
+        email.setHintTextColor(Color.GRAY);
         email.setInputType(33);
-        r.addView(email,new LinearLayout.LayoutParams(-1,60));
+        email.setSingleLine(true);
+        email.setBackground(rounded(Color.rgb(20,29,39), 14));
+        email.setPadding(dp(14), 0, dp(14), 0);
+        r.addView(email, new LinearLayout.LayoutParams(-1, dp(54)));
 
-        Button send=new Button(this);send.setText("Get code");
-        r.addView(send);
+        Button send = new Button(this);
+        send.setText("Get code");
+        send.setTextColor(Color.rgb(7,20,27));
+        send.setBackground(rounded(Color.rgb(132,245,212), 18));
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(-1, dp(50));
+        sp.topMargin = dp(14);
+        r.addView(send, sp);
 
-        TextView status=t("A 6-digit code will be sent to the authorized mailbox.",13);
-        status.setTextColor(Color.LTGRAY);r.addView(status);
+        TextView status = t("A new code expires after 10 minutes.", 13);
+        status.setTextColor(Color.rgb(160,174,184));
+        r.addView(status);
 
-        EditText code=new EditText(this);
-        code.setHint("Enter 6-digit code");
-        code.setTextColor(Color.WHITE);code.setHintTextColor(Color.GRAY);
+        EditText code = new EditText(this);
+        code.setHint("6-digit code");
+        code.setTextColor(Color.WHITE);
+        code.setHintTextColor(Color.GRAY);
         code.setInputType(2);
+        code.setSingleLine(true);
+        code.setBackground(rounded(Color.rgb(20,29,39), 14));
+        code.setPadding(dp(14), 0, dp(14), 0);
         code.setVisibility(View.GONE);
-        r.addView(code,new LinearLayout.LayoutParams(-1,60));
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-1, dp(54));
+        cp.topMargin = dp(10);
+        r.addView(code, cp);
 
-        Button verify=new Button(this);verify.setText("Verify code");
+        Button verify = new Button(this);
+        verify.setText("Verify");
+        verify.setTextColor(Color.WHITE);
+        verify.setBackground(rounded(Color.rgb(42,57,69), 18));
         verify.setVisibility(View.GONE);
-        r.addView(verify);
-
-        TextView note=t("The authorized mailbox is "+GUARDIAN+". The app does not grant access just because that address is typed.",13);
-        note.setTextColor(Color.LTGRAY);r.addView(note);
+        r.addView(verify, new LinearLayout.LayoutParams(-1, dp(50)));
 
         send.setOnClickListener(v -> {
-            String entered=email.getText().toString().trim();
-            if(!GUARDIAN.equalsIgnoreCase(entered)){
-                Toast.makeText(this,"That email is not the authorized mailbox.",Toast.LENGTH_LONG).show();
+            String entered = email.getText().toString().trim();
+            if (!GUARDIAN.equalsIgnoreCase(entered)) {
+                Toast.makeText(this, "Enter the authorized email address.", Toast.LENGTH_LONG).show();
                 return;
             }
-            long now=System.currentTimeMillis();
-            if(now-codeSentAt<RESEND_DELAY_MS){
-                long left=(RESEND_DELAY_MS-(now-codeSentAt)+999)/1000;
-                Toast.makeText(this,"Please wait "+left+" seconds before requesting another code.",Toast.LENGTH_LONG).show();
+
+            long now = System.currentTimeMillis();
+            if (now - codeSentAt < RESEND_DELAY_MS) {
+                long left = (RESEND_DELAY_MS - (now-codeSentAt) + 999) / 1000;
+                Toast.makeText(this, "Please wait " + left + " seconds.", Toast.LENGTH_LONG).show();
                 return;
             }
-            pendingCode=String.format(java.util.Locale.US,"%06d",new Random().nextInt(1_000_000));
-            codeSentAt=now;
-            failedAttempts=0;
+
+            pendingCode = String.format(Locale.US, "%06d", new Random().nextInt(1_000_000));
+            codeSentAt = now;
+            failedAttempts = 0;
             send.setEnabled(false);
-            status.setText("Sending verification code…");
+            status.setText("Sending…");
+
+            final String codeToSend = pendingCode;
             mailExecutor.execute(() -> {
-                boolean ok=sendCodeEmail(pendingCode);
+                SendResult result = sendCodeEmail(codeToSend);
                 runOnUiThread(() -> {
                     send.setEnabled(true);
-                    if(ok){
+                    if (result.ok) {
                         code.setVisibility(View.VISIBLE);
                         verify.setVisibility(View.VISIBLE);
                         code.requestFocus();
-                        ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(code,InputMethodManager.SHOW_IMPLICIT);
-                        status.setText("Code sent. Check "+GUARDIAN+" and enter it below.");
-                    }else{
-                        pendingCode=null;
-                        status.setText("The code could not be sent. Please try again.");
-                        Toast.makeText(this,"Could not send the verification email.",Toast.LENGTH_LONG).show();
+                        ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE))
+                                .showSoftInput(code, InputMethodManager.SHOW_IMPLICIT);
+                        status.setText("Code sent. Check your email.");
+                    } else {
+                        pendingCode = null;
+                        status.setText(result.message);
+                        Toast.makeText(this, result.message, Toast.LENGTH_LONG).show();
                     }
                 });
             });
         });
 
         verify.setOnClickListener(v -> {
-            String entered=code.getText().toString().trim();
-            if(pendingCode==null || System.currentTimeMillis()-codeSentAt>10*60_000L){
-                Toast.makeText(this,"That code has expired. Request a new code.",Toast.LENGTH_LONG).show();
+            String entered = code.getText().toString().trim();
+            if (pendingCode == null || System.currentTimeMillis()-codeSentAt > 10*60_000L) {
+                Toast.makeText(this, "That code has expired.", Toast.LENGTH_LONG).show();
                 return;
             }
-            if(++failedAttempts>5){
-                pendingCode=null;
-                Toast.makeText(this,"Too many incorrect attempts. Request a new code.",Toast.LENGTH_LONG).show();
+            if (++failedAttempts > 5) {
+                pendingCode = null;
+                Toast.makeText(this, "Too many incorrect attempts.", Toast.LENGTH_LONG).show();
                 return;
             }
-            if(pendingCode.equals(entered)){
-                pendingCode=null;
+            if (pendingCode.equals(entered)) {
+                pendingCode = null;
                 showSettings();
-            }else{
-                Toast.makeText(this,"Incorrect verification code.",Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "Incorrect code.", Toast.LENGTH_LONG).show();
             }
         });
 
         setContentView(r);
     }
 
-    boolean sendCodeEmail(String code){
-        HttpURLConnection c=null;
-        try{
-            URL u=new URL(EMAIL_SEND_URL);
-            c=(HttpURLConnection)u.openConnection();
+    SendResult sendCodeEmail(String code) {
+        HttpURLConnection c = null;
+        try {
+            URL u = new URL(EMAIL_SEND_URL);
+            c = (HttpURLConnection)u.openConnection();
             c.setRequestMethod("POST");
             c.setConnectTimeout(15_000);
             c.setReadTimeout(20_000);
             c.setDoOutput(true);
-            c.setRequestProperty("Content-Type","application/x-www-form-urlencoded");
-            String body="subject="+enc("ShortVid settings verification code")
-                    +"&message="+enc("Your ShortVid settings verification code is: "+code+"\n\nThis code expires in 10 minutes.");
-            try(OutputStream out=c.getOutputStream()){out.write(body.getBytes("UTF-8"));}
-            int status=c.getResponseCode();
-            return status>=200 && status<400;
-        }catch(Exception e){
-            return false;
-        }finally{
-            if(c!=null)c.disconnect();
+            c.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            c.setRequestProperty("Accept", "application/json");
+
+            String json = "{"
+                    + ""name":"ShortVid","
+                    + ""email":"" + jsonEscape(GUARDIAN) + "","
+                    + ""_subject":"ShortVid settings verification code","
+                    + ""_template":"table","
+                    + ""message":"Your ShortVid settings verification code is: " + code
+                    + "\n\nThis code expires in 10 minutes.""
+                    + "}";
+
+            try(OutputStream out = c.getOutputStream()) {
+                out.write(json.getBytes("UTF-8"));
+            }
+
+            int status = c.getResponseCode();
+            InputStream stream = status >= 400 ? c.getErrorStream() : c.getInputStream();
+            String response = stream == null ? "" : readAll(stream);
+
+            if (status >= 200 && status < 300) {
+                String lower = response.toLowerCase(Locale.US);
+                if (lower.contains(""success":false") || lower.contains(""error"")) {
+                    return new SendResult(false, "Email service rejected the request.");
+                }
+                return new SendResult(true, "Code sent. Check your email.");
+            }
+
+            return new SendResult(false, "Email could not be sent (" + status + ").");
+        } catch (Exception e) {
+            return new SendResult(false, "Email could not be sent. Check your connection.");
+        } finally {
+            if (c != null) c.disconnect();
         }
     }
 
-    String enc(String s){
-        try{return URLEncoder.encode(s,"UTF-8");}catch(Exception e){return s;}
+    String readAll(InputStream in) throws IOException {
+        try(BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"))) {
+            StringBuilder s = new StringBuilder();
+            String line;
+            while((line=br.readLine()) != null) s.append(line);
+            return s.toString();
+        }
     }
 
-    void showSettings(){
-        LinearLayout r=new LinearLayout(this);base(r);
-        r.addView(t("ShortVid settings",28));
-        r.addView(t("Playback limit",16));
+    String jsonEscape(String s) {
+        return s.replace("\\","\\\\").replace(""","\\"");
+    }
 
-        SeekBar limit=new SeekBar(this);
-        limit.setMax(30);
-        long current=getSharedPreferences("guard",MODE_PRIVATE).getLong("max_ms",MainActivity.DEFAULT_MAX_MS);
-        int minutes=(int)Math.max(1,Math.min(30,current/60000L));
+    void showSettings() {
+        LinearLayout r = new LinearLayout(this);
+        base(r);
+
+        TextView title = t("ShortVid settings", 28);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        r.addView(title);
+        r.addView(t("Maximum playback duration", 16));
+
+        SeekBar limit = new SeekBar(this);
+        limit.setMax(29);
+        long current = getSharedPreferences("guard", MODE_PRIVATE)
+                .getLong("max_ms", MainActivity.DEFAULT_MAX_MS);
+        int minutes = (int)Math.max(1, Math.min(30, current/60000L));
         limit.setProgress(minutes-1);
-        r.addView(limit,new LinearLayout.LayoutParams(-1,55));
+        r.addView(limit, new LinearLayout.LayoutParams(-1, dp(50)));
 
-        TextView value=t(minutes+" minutes",18);
-        value.setTextColor(Color.rgb(132,245,212));r.addView(value);
-        limit.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
-            public void onProgressChanged(SeekBar s,int p,boolean from){value.setText((p+1)+" minutes");}
-            public void onStartTrackingTouch(SeekBar s){}
-            public void onStopTrackingTouch(SeekBar s){}
+        TextView value = t(minutes + " minutes", 18);
+        value.setTextColor(Color.rgb(132,245,212));
+        r.addView(value);
+
+        limit.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(SeekBar s, int p, boolean from) {
+                value.setText((p+1) + " minutes");
+            }
+            public void onStartTrackingTouch(SeekBar s) {}
+            public void onStopTrackingTouch(SeekBar s) {}
         });
 
-        r.addView(t("The duration is checked before the player is started.",13));
+        TextView info = t("The duration is checked before the player is initialized.", 13);
+        info.setTextColor(Color.rgb(160,174,184));
+        r.addView(info);
 
-        EditText warning=new EditText(this);
-        warning.setHint("Warning email");
-        warning.setTextColor(Color.WHITE);warning.setHintTextColor(Color.GRAY);
-        warning.setInputType(33);
-        warning.setText(GUARDIAN);
-        warning.setEnabled(false);
-        r.addView(warning,new LinearLayout.LayoutParams(-1,60));
+        Button save = new Button(this);
+        save.setText("Save");
+        save.setTextColor(Color.rgb(7,20,27));
+        save.setBackground(rounded(Color.rgb(132,245,212), 18));
+        r.addView(save, new LinearLayout.LayoutParams(-1, dp(50)));
 
-        Button save=new Button(this);save.setText("Save settings");r.addView(save);
-        save.setOnClickListener(v->{
-            long ms=(limit.getProgress()+1)*60000L;
-            getSharedPreferences("guard",MODE_PRIVATE).edit()
-                    .putLong("max_ms",ms)
-                    .putString("email",GUARDIAN)
+        save.setOnClickListener(v -> {
+            long ms = (limit.getProgress()+1) * 60_000L;
+            getSharedPreferences("guard", MODE_PRIVATE).edit()
+                    .putLong("max_ms", ms)
+                    .putString("email", GUARDIAN)
                     .apply();
-            Toast.makeText(this,"Settings saved.",Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Settings saved.", Toast.LENGTH_SHORT).show();
             finish();
         });
 
-        Button back=new Button(this);back.setText("Cancel");r.addView(back);
-        back.setOnClickListener(v->finish());
         setContentView(r);
+    }
+
+    static class SendResult {
+        boolean ok; String message;
+        SendResult(boolean o, String m) { ok=o; message=m; }
     }
 }
