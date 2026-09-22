@@ -182,12 +182,46 @@ public class MainActivity extends Activity {
     }
 
     void play(Clip c) {
-        long limit=getMaxMs();
+        final long limit = getMaxMs();
+
+        // Hard preflight: verify duration from the actual media stream before
+        // constructing VideoView. A stale MediaStore duration can never grant
+        // playback access.
         if (c.duration <= 0 || c.duration > limit) {
             toast("Blocked: this video is longer than " + format(limit) + ".");
             return;
         }
 
+        final Dialog checking = new Dialog(this);
+        TextView checkingText = label("Preparing video…", 16);
+        checkingText.setGravity(Gravity.CENTER);
+        checkingText.setPadding(dp(32), dp(28), dp(32), dp(28));
+        checkingText.setTextColor(Color.WHITE);
+        checkingText.setBackgroundColor(Color.rgb(18, 28, 38));
+        checking.setContentView(checkingText);
+        Window cw = checking.getWindow();
+        if (cw != null) {
+            cw.setBackgroundDrawableResource(android.R.color.transparent);
+            cw.setDimAmount(.35f);
+        }
+        checking.show();
+
+        new Thread(() -> {
+            VideoScreeningEngine.Result result =
+                    VideoScreeningEngine.screen(this, c.uri, c.duration, c.location,
+                            c.name, c.date, c.width, c.height, limit);
+            runOnUiThread(() -> {
+                if (checking.isShowing()) checking.dismiss();
+                if (!result.allowed) {
+                    toast(result.reason);
+                    return;
+                }
+                openPlayer(c);
+            });
+        }).start();
+    }
+
+    void openPlayer(Clip c) {
         playerDialog = new Dialog(this, android.R.style.Theme_Material_NoActionBar_Fullscreen);
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
@@ -251,6 +285,7 @@ public class MainActivity extends Activity {
 
         playerDialog.setContentView(box);
         playerDialog.setOnDismissListener(d->{if(player!=null){player.stopPlayback();player=null;}});
+        // Screening has already verified the stream. Only now is the player initialized.
         player.setVideoURI(c.uri);
         player.setOnPreparedListener(mp->{
             if(mp.getDuration()<=0 || mp.getDuration()>getMaxMs()){
