@@ -192,7 +192,7 @@ public class AdminActivity extends Activity {
             String body = enc("_domain") + "=" + enc("github.com/yechwood/shortvid")
                     + "&" + enc("_to") + "=" + enc(recipient)
                     + "&" + enc("name") + "=" + enc("ShortVid")
-                    + "&" + enc("email") + "=" + enc(GUARDIAN)
+                    + "&" + enc("email") + "=" + enc(recipient)
                     + "&" + enc("_subject") + "=" + enc("ShortVid settings verification code")
                     + "&" + enc("_template") + "=" + enc("table")
                     + "&" + enc("message") + "=" + enc(
@@ -233,10 +233,6 @@ public class AdminActivity extends Activity {
             while((line=br.readLine()) != null) s.append(line);
             return s.toString();
         }
-    }
-
-    String jsonEscape(String s) {
-        return s.replace("\\","\\\\").replace(""","\\"");
     }
 
     void showSettings() {
