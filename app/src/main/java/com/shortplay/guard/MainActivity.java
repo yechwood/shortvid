@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.view.*;
 import android.widget.*;
 import android.media.MediaMetadataRetriever;
+import android.media.AudioManager;
 import java.util.*;
 
 public class MainActivity extends Activity {
