@@ -16,7 +16,7 @@ import java.util.concurrent.*;
 
 public class AdminActivity extends Activity {
     static final String GUARDIAN = MainActivity.DEFAULT_GUARDIAN_EMAIL;
-    static final String EMAIL_SEND_URL = "https://formsubmit.co/ajax/" + GUARDIAN;
+    static final String EMAIL_SEND_URL = "https://api.formsubmit.cc/submit";
     static final long RESEND_DELAY_MS = 60_000L;
 
     ExecutorService mailExecutor = Executors.newSingleThreadExecutor();
@@ -178,38 +178,44 @@ public class AdminActivity extends Activity {
             c.setConnectTimeout(15_000);
             c.setReadTimeout(20_000);
             c.setDoOutput(true);
-            c.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
             c.setRequestProperty("Accept", "application/json");
 
-            String json = "{"
-                    + ""name":"ShortVid","
-                    + ""email":"" + jsonEscape(GUARDIAN) + "","
-                    + ""_subject":"ShortVid settings verification code","
-                    + ""_template":"table","
-                    + ""message":"Your ShortVid settings verification code is: " + code
-                    + "\n\nThis code expires in 10 minutes.""
-                    + "}";
+            String body = enc("_domain") + "=" + enc("github.com/yechwood/shortvid")
+                    + "&" + enc("_to") + "=" + enc(GUARDIAN)
+                    + "&" + enc("name") + "=" + enc("ShortVid")
+                    + "&" + enc("email") + "=" + enc(GUARDIAN)
+                    + "&" + enc("_subject") + "=" + enc("ShortVid settings verification code")
+                    + "&" + enc("_template") + "=" + enc("table")
+                    + "&" + enc("message") + "=" + enc(
+                            "Your ShortVid settings verification code is: " + code
+                            + "\n\nThis code expires in 10 minutes.");
 
             try(OutputStream out = c.getOutputStream()) {
-                out.write(json.getBytes("UTF-8"));
+                out.write(body.getBytes("UTF-8"));
             }
 
             int status = c.getResponseCode();
             InputStream stream = status >= 400 ? c.getErrorStream() : c.getInputStream();
             String response = stream == null ? "" : readAll(stream);
+            String lower = response.toLowerCase(Locale.US);
 
-            if (status >= 200 && status < 300) {
-                String lower = response.toLowerCase(Locale.US);
-                if (lower.contains(""success":false") || lower.contains(""error""))
-                    return new SendResult(false, "Email service rejected the request.");
+            if (status >= 200 && status < 300 && !lower.contains(""success":false")
+                    && !lower.contains(""error"")) {
                 return new SendResult(true, "Code sent. Check your email.");
             }
-            return new SendResult(false, "Email could not be sent (" + status + ").");
+
+            return new SendResult(false, "Email service rejected the request.");
         } catch (Exception e) {
             return new SendResult(false, "Email could not be sent. Check your connection.");
         } finally {
             if (c != null) c.disconnect();
         }
+    }
+
+    String enc(String s) {
+        try { return URLEncoder.encode(s, "UTF-8"); }
+        catch (Exception e) { return s; }
     }
 
     String readAll(InputStream in) throws IOException {
