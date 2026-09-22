@@ -25,7 +25,7 @@ public class MainActivity extends Activity {
 
     LinearLayout root, grid;
     SharedPreferences prefs;
-    ArrayList<Clip> clips = new ArrayList<>();
+    ArrayList<MediaItemData> media = new ArrayList<>();
     Handler handler = new Handler(Looper.getMainLooper());
     ExoPlayer exoPlayer;
     Dialog playerDialog;
@@ -109,40 +109,54 @@ public class MainActivity extends Activity {
     }
 
     void loadClips() {
-        clips.clear();
-        String permission = Build.VERSION.SDK_INT >= 33
-                ? Manifest.permission.READ_MEDIA_VIDEO
-                : Manifest.permission.READ_EXTERNAL_STORAGE;
-        if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{permission}, 7);
+        String[] permissions = Build.VERSION.SDK_INT >= 33
+                ? new String[]{Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO}
+                : new String[]{Manifest.permission.READ_EXTERNAL_STORAGE};
+        boolean ok = true;
+        for (String permission : permissions)
+            ok &= checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
+        if (!ok) {
+            requestPermissions(permissions, 7);
             return;
         }
 
-        Uri base = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
-        String[] cols = {
-                MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME,
+        Uri videos = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+        String[] vc = {MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME,
                 MediaStore.Video.Media.DURATION, MediaStore.Video.Media.DATE_MODIFIED,
                 MediaStore.Video.Media.RELATIVE_PATH, MediaStore.Video.Media.WIDTH,
-                MediaStore.Video.Media.HEIGHT
-        };
-
-        try (Cursor c = getContentResolver().query(base, cols, null, null,
+                MediaStore.Video.Media.HEIGHT};
+        try (Cursor c = getContentResolver().query(videos, vc, null, null,
                 MediaStore.Video.Media.DATE_MODIFIED + " DESC")) {
             if (c != null) while (c.moveToNext()) {
-                long id = c.getLong(0);
-                clips.add(new Clip(ContentUris.withAppendedId(base, id), c.getString(1),
-                        c.getLong(2), c.getLong(3), c.getString(4) == null ? "" : c.getString(4),
-                        c.getInt(5), c.getInt(6)));
+                long id=c.getLong(0);
+                media.add(new MediaItemData(ContentUris.withAppendedId(videos,id),c.getString(1),
+                        true,c.getLong(2),c.getLong(3),c.getString(4)==null?"":c.getString(4),
+                        c.getInt(5),c.getInt(6)));
             }
         } catch (Exception ignored) {}
+
+        Uri images = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+        String[] ic = {MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_MODIFIED, MediaStore.Images.Media.RELATIVE_PATH,
+                MediaStore.Images.Media.WIDTH, MediaStore.Images.Media.HEIGHT};
+        try (Cursor c = getContentResolver().query(images, ic, null, null,
+                MediaStore.Images.Media.DATE_MODIFIED + " DESC")) {
+            if (c != null) while (c.moveToNext()) {
+                long id=c.getLong(0);
+                media.add(new MediaItemData(ContentUris.withAppendedId(images,id),c.getString(1),
+                        false,0,c.getLong(2),c.getString(3)==null?"":c.getString(3),
+                        c.getInt(4),c.getInt(5)));
+            }
+        } catch (Exception ignored) {}
+
+        Collections.sort(media,(a,b)->Long.compare(b.date,a.date));
     }
 
     void render() {
         if (grid == null) return;
         grid.removeAllViews();
-
-        if (clips.isEmpty()) {
-            TextView empty = text("No camera videos found", 16);
+        if (media.isEmpty()) {
+            TextView empty = text("No photos or videos found", 16);
             empty.setGravity(Gravity.CENTER);
             empty.setTextColor(Color.rgb(170,184,194));
             grid.addView(empty, new LinearLayout.LayoutParams(-1, dp(160)));
@@ -150,55 +164,106 @@ public class MainActivity extends Activity {
         }
 
         int widthDp = getResources().getConfiguration().screenWidthDp;
-        // Qin F21 Pro has a compact 480x640 display; two columns keep cards/touch targets usable.
         int columns = widthDp >= 600 ? 4 : (widthDp <= 360 ? 2 : 3);
         LinearLayout row = null;
-
-        for (int i = 0; i < clips.size(); i++) {
+        for (int i=0;i<media.size();i++) {
             if (i % columns == 0) {
-                row = new LinearLayout(this);
+                row=new LinearLayout(this);
                 row.setGravity(Gravity.TOP);
-                int rowHeight = getResources().getConfiguration().screenWidthDp <= 360 ? 202 : 166;
-                grid.addView(row, new LinearLayout.LayoutParams(-1, dp(rowHeight)));
+                int rowHeight=widthDp<=360?202:166;
+                grid.addView(row,new LinearLayout.LayoutParams(-1,dp(rowHeight)));
             }
-            LinearLayout card = makeCard(clips.get(i));
-            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, getResources().getConfiguration().screenWidthDp <= 360 ? dp(194) : dp(158), 1);
-            cp.setMargins(dp(3), dp(3), dp(3), dp(5));
-            row.addView(card, cp);
+            MediaItemData item=media.get(i);
+            LinearLayout card=makeCard(item);
+            LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,widthDp<=360?dp(194):dp(158),1);
+            cp.setMargins(dp(3),dp(3),dp(3),dp(5));
+            row.addView(card,cp);
         }
     }
 
-    LinearLayout makeCard(Clip c) {
-        LinearLayout card = new LinearLayout(this);
+    LinearLayout makeCard(MediaItemData item) {
+        LinearLayout card=new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(3), dp(3), dp(3), dp(5));
-        card.setBackground(rounded(Color.rgb(18,27,36), 14));
+        card.setPadding(dp(3),dp(3),dp(3),dp(5));
+        card.setBackground(rounded(Color.rgb(18,27,36),14));
 
-        FrameLayout frame = new FrameLayout(this);
-        ImageView thumb = new ImageView(this);
+        FrameLayout frame=new FrameLayout(this);
+        ImageView thumb=new ImageView(this);
         thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        thumb.setBackground(rounded(Color.rgb(25,36,47), 11));
-        frame.addView(thumb, new FrameLayout.LayoutParams(-1, dp(112)));
-        loadThumbnail(c, thumb);
+        thumb.setBackground(rounded(Color.rgb(25,36,47),11));
+        frame.addView(thumb,new FrameLayout.LayoutParams(-1,dp(112)));
+        loadThumbnail(item,thumb);
 
-        TextView duration = text(formatDuration(c.duration), 11);
-        duration.setGravity(Gravity.CENTER);
-        duration.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        duration.setBackground(rounded(Color.argb(210,0,0,0), 7));
-        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(dp(54), dp(24), Gravity.BOTTOM | Gravity.END);
-        bp.setMargins(0,0,dp(5),dp(5));
-        frame.addView(duration, bp);
+        if (item.video) {
+            TextView duration=text(formatDuration(item.duration),11);
+            duration.setGravity(Gravity.CENTER);
+            duration.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+            duration.setBackground(rounded(Color.argb(210,0,0,0),7));
+            FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(dp(54),dp(24),Gravity.BOTTOM|Gravity.END);
+            bp.setMargins(0,0,dp(5),dp(5));
+            frame.addView(duration,bp);
+        } else {
+            TextView photo=text("PHOTO",9);
+            photo.setGravity(Gravity.CENTER);
+            photo.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+            photo.setTextColor(Color.rgb(220,230,235));
+            photo.setBackground(rounded(Color.argb(190,0,0,0),7));
+            FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(dp(54),dp(22),Gravity.BOTTOM|Gravity.END);
+            bp.setMargins(0,0,dp(5),dp(5));
+            frame.addView(photo,bp);
+        }
         card.addView(frame);
-
-        TextView name = text(c.name, 11);
+        TextView name=text(item.name,11);
         name.setSingleLine(true);
         name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         name.setTextColor(Color.rgb(218,225,231));
-        name.setPadding(dp(5), dp(3), dp(5), 0);
-        card.addView(name, new LinearLayout.LayoutParams(-1, dp(27)));
-
-        card.setOnClickListener(v -> play(c));
+        name.setPadding(dp(5),dp(3),dp(5),0);
+        card.addView(name,new LinearLayout.LayoutParams(-1,dp(27)));
+        card.setOnClickListener(v -> { if(item.video) play(new Clip(item.uri,item.name,item.duration,item.date,item.location,item.width,item.height)); else openPhoto(item); });
         return card;
+    }
+
+    void loadThumbnail(MediaItemData item, ImageView target) {
+        new Thread(() -> {
+            Bitmap b=null;
+            try {
+                if (item.video) {
+                    MediaMetadataRetriever r=new MediaMetadataRetriever();
+                    r.setDataSource(this,item.uri);
+                    b=r.getFrameAtTime(0,MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                    r.release();
+                } else {
+                    b=MediaStore.Images.Media.getBitmap(getContentResolver(),item.uri);
+                }
+            } catch(Exception ignored) {}
+            Bitmap out=b;
+            runOnUiThread(()->{ if(out!=null) target.setImageBitmap(out); });
+        }).start();
+    }
+
+    void openPhoto(MediaItemData item) {
+        Dialog d=new Dialog(this,android.R.style.Theme_Material_NoActionBar_Fullscreen);
+        FrameLayout box=new FrameLayout(this);
+        box.setBackgroundColor(Color.BLACK);
+        ImageView image=new ImageView(this);
+        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        box.addView(image,new FrameLayout.LayoutParams(-1,-1));
+        TextView hint=text("Back to gallery",13);
+        hint.setGravity(Gravity.CENTER);
+        hint.setBackground(rounded(Color.argb(185,20,25,31),18));
+        FrameLayout.LayoutParams hp=new FrameLayout.LayoutParams(dp(130),dp(42),Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+        hp.setMargins(0,dp(28),0,0);
+        box.addView(hint,hp);
+        image.setOnClickListener(v->hint.setVisibility(View.VISIBLE));
+        box.setOnClickListener(v->{ if(v==box) d.dismiss(); });
+        new Thread(()->{
+            try {
+                Bitmap b=MediaStore.Images.Media.getBitmap(getContentResolver(),item.uri);
+                runOnUiThread(()->image.setImageBitmap(b));
+            } catch(Exception ignored) {}
+        }).start();
+        d.setContentView(box);
+        d.show();
     }
 
     void loadThumbnail(Clip c, ImageView target) {
@@ -394,11 +459,17 @@ public class MainActivity extends Activity {
 
     @Override public void onRequestPermissionsResult(int r,String[] p,int[] g) {
         super.onRequestPermissionsResult(r,p,g);
-        if (r == 7 && g.length > 0 && g[0] == PackageManager.PERMISSION_GRANTED) {
+        if (r == 7 && g.length > 0) {
             loadClips(); render();
         }
     }
 
+    static class MediaItemData {
+        Uri uri; String name, location; long duration, date; int width, height; boolean video;
+        MediaItemData(Uri u,String n,boolean v,long d,long da,String l,int w,int h) {
+            uri=u; name=n; video=v; duration=d; date=da; location=l; width=w; height=h;
+        }
+    }
     static class Clip {
         Uri uri; String name, location; long duration, date; int width, height;
         Clip(Uri u,String n,long d,long da,String l,int w,int h) {
