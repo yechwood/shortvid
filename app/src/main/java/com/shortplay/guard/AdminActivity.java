@@ -26,6 +26,11 @@ public class AdminActivity extends Activity {
 
     int dp(float v) { return (int)(v * getResources().getDisplayMetrics().density + .5f); }
 
+    String getGuardianEmail() {
+        return getSharedPreferences("guard", MODE_PRIVATE)
+                .getString("email", GUARDIAN);
+    }
+
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
         showAuthorization();
@@ -70,6 +75,7 @@ public class AdminActivity extends Activity {
 
         EditText email = new EditText(this);
         email.setHint("Email address");
+        email.setText(getGuardianEmail());
         email.setTextColor(Color.WHITE); email.setHintTextColor(Color.GRAY);
         email.setInputType(33); email.setSingleLine(true);
         email.setBackground(rounded(Color.rgb(20,29,39), 14));
@@ -108,7 +114,9 @@ public class AdminActivity extends Activity {
 
         send.setOnClickListener(v -> {
             String entered = email.getText().toString().trim();
-            if (!GUARDIAN.equalsIgnoreCase(entered)) {
+            String authorized = getGuardianEmail();
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(entered).matches()
+                    || !authorized.equalsIgnoreCase(entered)) {
                 Toast.makeText(this, "Enter the authorized email address.", Toast.LENGTH_LONG).show();
                 return;
             }
@@ -128,7 +136,7 @@ public class AdminActivity extends Activity {
 
             final String codeToSend = pendingCode;
             mailExecutor.execute(() -> {
-                SendResult result = sendCodeEmail(codeToSend);
+                SendResult result = sendCodeEmail(codeToSend, authorized);
                 runOnUiThread(() -> {
                     send.setEnabled(true);
                     if (result.ok) {
@@ -169,7 +177,7 @@ public class AdminActivity extends Activity {
         setContentView(r);
     }
 
-    SendResult sendCodeEmail(String code) {
+    SendResult sendCodeEmail(String code, String recipient) {
         HttpURLConnection c = null;
         try {
             URL u = new URL(EMAIL_SEND_URL);
@@ -182,7 +190,7 @@ public class AdminActivity extends Activity {
             c.setRequestProperty("Accept", "application/json");
 
             String body = enc("_domain") + "=" + enc("github.com/yechwood/shortvid")
-                    + "&" + enc("_to") + "=" + enc(GUARDIAN)
+                    + "&" + enc("_to") + "=" + enc(recipient)
                     + "&" + enc("name") + "=" + enc("ShortVid")
                     + "&" + enc("email") + "=" + enc(GUARDIAN)
                     + "&" + enc("_subject") + "=" + enc("ShortVid settings verification code")
@@ -200,8 +208,8 @@ public class AdminActivity extends Activity {
             String response = stream == null ? "" : readAll(stream);
             String lower = response.toLowerCase(Locale.US);
 
-            if (status >= 200 && status < 300 && !lower.contains(""success":false")
-                    && !lower.contains(""error"")) {
+            if (status >= 200 && status < 300 && !lower.contains("\"success\":false")
+                    && !lower.contains("\"error\"")) {
                 return new SendResult(true, "Code sent. Check your email.");
             }
 
@@ -237,6 +245,20 @@ public class AdminActivity extends Activity {
         TextView title = t("ShortVid settings", 28);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         r.addView(title);
+
+        r.addView(t("Verification email", 16));
+        EditText settingsEmail = new EditText(this);
+        settingsEmail.setHint("Email address");
+        settingsEmail.setText(getGuardianEmail());
+        settingsEmail.setTextColor(Color.WHITE); settingsEmail.setHintTextColor(Color.GRAY);
+        settingsEmail.setInputType(33); settingsEmail.setSingleLine(true);
+        settingsEmail.setBackground(rounded(Color.rgb(20,29,39), 14));
+        settingsEmail.setPadding(dp(14),0,dp(14),0);
+        r.addView(settingsEmail, new LinearLayout.LayoutParams(-1, dp(54)));
+        TextView emailInfo = t("Future secret-code verification messages will be sent to this address.", 13);
+        emailInfo.setTextColor(Color.rgb(160,174,184));
+        r.addView(emailInfo);
+
         r.addView(t("Maximum playback duration", 16));
 
         SeekBar limit = new SeekBar(this);
@@ -270,10 +292,15 @@ public class AdminActivity extends Activity {
         r.addView(save, new LinearLayout.LayoutParams(-1, dp(50)));
 
         save.setOnClickListener(v -> {
+            String newEmail = settingsEmail.getText().toString().trim();
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(newEmail).matches()) {
+                Toast.makeText(this, "Enter a valid email address.", Toast.LENGTH_LONG).show();
+                return;
+            }
             long ms = (limit.getProgress()+1) * 60_000L;
             getSharedPreferences("guard", MODE_PRIVATE).edit()
                     .putLong("max_ms", ms)
-                    .putString("email", GUARDIAN)
+                    .putString("email", newEmail)
                     .apply();
             Toast.makeText(this, "Settings saved.", Toast.LENGTH_SHORT).show();
             finish();
