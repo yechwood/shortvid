@@ -17,7 +17,7 @@ import java.util.Locale;
  * making normal personal videos fail because of skin tones, lighting, or cuts.
  */
 final class VideoScreeningEngine {
-    static final int VERSION = 3;
+    static final int VERSION = 4;
 
     static final class Result {
         final boolean allowed;
@@ -60,6 +60,24 @@ final class VideoScreeningEngine {
                 return new Result(false, "Blocked: this video is not in the phone camera folder.");
             }
 
+            // Conservative provenance heuristic. Require multiple independent
+            // indicators before rejecting something that lives in DCIM/Camera.
+            String bitrateRaw = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE);
+            String frameRateRaw = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE);
+            String mime = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE);
+            long bitrate = parseLong(bitrateRaw, 0);
+            float frameRate = parseFloat(frameRateRaw, 0f);
+            long pixels = (long) width * (long) height;
+            int signals = 0;
+            if (pixels >= 3840L * 2160L) signals++;
+            if (bitrate >= 35_000_000L) signals++;
+            if (frameRate >= 59f) signals++;
+            if (mime != null && !mime.toLowerCase(Locale.US).startsWith("video/")) signals++;
+            if (signals >= 2) {
+                cache.edit().putString(k, "block_professional").apply();
+                return new Result(false, "Blocked: this video does not look like a normal phone-camera recording.");
+            }
+
             cache.edit().putString(k, "allow").apply();
             return new Result(true, "");
         } catch (Exception e) {
@@ -67,6 +85,16 @@ final class VideoScreeningEngine {
         } finally {
             try { r.release(); } catch (Exception ignored) {}
         }
+    }
+
+    private static long parseLong(String s, long fallback) {
+        try { return s == null ? fallback : Long.parseLong(s); }
+        catch (Exception ignored) { return fallback; }
+    }
+
+    private static float parseFloat(String s, float fallback) {
+        try { return s == null ? fallback : Float.parseFloat(s); }
+        catch (Exception ignored) { return fallback; }
     }
 
     private static String format(long ms) {
