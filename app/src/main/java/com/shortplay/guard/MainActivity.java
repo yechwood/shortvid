@@ -278,7 +278,7 @@ public class MainActivity extends Activity {
         gp.setMargins(0, dp(42), 0, 0);
         outer.addView(gesturePill, gp);
 
-        outer.setOnTouchListener((v, e) -> handlePlayerTouch(e, pv));
+        pv.setOnTouchListener((v, e) -> handlePlayerTouch(e, pv));
 
         playerDialog.setContentView(outer);
         playerDialog.setOnDismissListener(d -> releasePlayer());
