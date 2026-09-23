@@ -416,14 +416,7 @@ public class MainActivity extends Activity {
         bar.addView(save,new LinearLayout.LayoutParams(0,dp(52),1));
         bar.addView(cancel,new LinearLayout.LayoutParams(0,dp(52),1));
         box.addView(bar,new FrameLayout.LayoutParams(-1,dp(76),Gravity.BOTTOM));
-        crop.setOnClickListener(v->{
-            if(editorBitmap==null)return;
-            int side=Math.min(editorBitmap.getWidth(),editorBitmap.getHeight());
-            int margin=(int)(side*.10f);
-            editorBitmap=Bitmap.createBitmap(editorBitmap,(editorBitmap.getWidth()-side)/2+margin,
-                    (editorBitmap.getHeight()-side)/2+margin,Math.max(1,side-2*margin),Math.max(1,side-2*margin));
-            image.setImageBitmap(editorBitmap); image.setScaleX(1); image.setScaleY(1);
-        });
+        crop.setOnClickListener(v->openCropDialog(image));
         rotate.setOnClickListener(v->{
             if(editorBitmap==null)return;
             Matrix m=new Matrix(); m.postRotate(90);
@@ -435,6 +428,20 @@ public class MainActivity extends Activity {
         d.setContentView(box); d.show();
     }
 
+    void openCropDialog(ImageView image) {
+        if(editorBitmap==null)return;
+        Dialog cd=new Dialog(this,android.R.style.Theme_Material_NoActionBar_Fullscreen);
+        LinearLayout box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setBackgroundColor(Color.BLACK);
+        CropToolView cv=new CropToolView(this,editorBitmap);
+        box.addView(cv,new LinearLayout.LayoutParams(-1,0,1));
+        LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER);
+        Button cancel=smallButton("Cancel"), apply=smallButton("Crop");
+        bar.addView(cancel,new LinearLayout.LayoutParams(0,dp(60),1)); bar.addView(apply,new LinearLayout.LayoutParams(0,dp(60),1));
+        box.addView(bar,new LinearLayout.LayoutParams(-1,dp(72)));
+        cancel.setOnClickListener(v->cd.dismiss());
+        apply.setOnClickListener(v->{ Bitmap b=cv.getCroppedBitmap(); if(b!=null){ editorBitmap=b; image.setImageBitmap(b); image.setScaleX(1); image.setScaleY(1); } cd.dismiss(); });
+        cd.setContentView(box); cd.show();
+    }
     void saveEditedPhoto(MediaItemData original, Bitmap bitmap) {
         if(bitmap==null)return;
         new Thread(()->{
