@@ -107,7 +107,7 @@ public class MainActivity extends Activity {
         visible.clear();
         boolean showVideos=prefs.getBoolean("show_videos",true), showPhotos=prefs.getBoolean("show_photos",true);
         if(currentFolder==null) for(MediaItemData x:media) if((x.video&&showVideos)||(!x.video&&showPhotos)) visible.add(x);
-        else for(MediaItemData x:media) if(x.folder.equals(currentFolder)&&((x.video&&showVideos)||(!x.video&&showPhotos))) visible.add(x);
+        else for(MediaItemData y:media) if(y.folder.equals(currentFolder)&&((y.video&&showVideos)||(!y.video&&showPhotos))) visible.add(y);
     }
     void render(){
         buildVisible();
