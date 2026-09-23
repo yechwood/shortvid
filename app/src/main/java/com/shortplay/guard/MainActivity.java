@@ -10,9 +10,10 @@ import android.database.Cursor;
 import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.BitmapFactory;
+import com.yalantis.ucrop.UCrop;
+import com.yalantis.ucrop.UCropActivity;
 import android.net.Uri;
 import android.view.*;
-import android.view.ScaleGestureDetector;
 import android.widget.*;
 import android.media.MediaMetadataRetriever;
 import java.io.OutputStream;
@@ -47,6 +48,10 @@ public class MainActivity extends Activity {
     TextView viewerTitle;
     int viewerIndex = -1;
     Bitmap editorBitmap;
+    Uri pendingCropUri;
+    ImageView pendingCropImage;
+    float viewerDownX;
+    boolean viewerTouchTracking;
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
@@ -265,9 +270,28 @@ public class MainActivity extends Activity {
         viewerDialog=new Dialog(this,android.R.style.Theme_Material_NoActionBar_Fullscreen);
         viewerBox=new SwipeFrameLayout(this);
         viewerBox.setBackgroundColor(Color.BLACK);
-        viewerImage=new ImageView(this);
+        viewerImage=new io.getstream.photoview.PhotoView(this);
         viewerImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        viewerImage.setOnTouchListener((v,e)->handleViewerZoomTouch(e));
+        viewerImage.setZoomable(true);
+        viewerImage.setMaximumScale(6f);
+        viewerImage.setMediumScale(2.5f);
+        viewerImage.setMinimumScale(1f);
+        viewerImage.setOnTouchListener((v,e)->{
+            if(e.getActionMasked()==MotionEvent.ACTION_DOWN){
+                viewerDownX=e.getX();
+                viewerTouchTracking=true;
+            } else if(e.getActionMasked()==MotionEvent.ACTION_UP && viewerTouchTracking){
+                viewerTouchTracking=false;
+                io.getstream.photoview.PhotoView pv=(io.getstream.photoview.PhotoView)v;
+                if(pv.getScale()<=1.05f && Math.abs(e.getX()-viewerDownX)>dp(70)){
+                    if(e.getX()<viewerDownX) showViewerItem(viewerIndex+1);
+                    else showViewerItem(viewerIndex-1);
+                }
+            } else if(e.getActionMasked()==MotionEvent.ACTION_CANCEL){
+                viewerTouchTracking=false;
+            }
+            return false;
+        });
         viewerBox.addView(viewerImage,new FrameLayout.LayoutParams(-1,-1));
 
         viewerPlayer=new PlayerView(this);
@@ -319,7 +343,7 @@ public class MainActivity extends Activity {
         MediaItemData item=media.get(index);
         viewerTitle.setText((index+1)+" / "+media.size()+"  "+item.name);
         releaseViewerPlayer();
-        viewerScaleFactor=1f; viewerImage.setScaleX(1f); viewerImage.setScaleY(1f);
+        ((io.getstream.photoview.PhotoView)viewerImage).setScale(1f, false);
         viewerImage.setVisibility(item.video?View.GONE:View.VISIBLE);
         viewerPlayer.setVisibility(item.video?View.VISIBLE:View.GONE);
         if(item.video) {
@@ -367,20 +391,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    ScaleGestureDetector viewerScale;
-    float viewerScaleFactor=1f; float viewerDownX;
-    boolean handleViewerZoomTouch(MotionEvent e) {
-        if(e.getActionMasked()==MotionEvent.ACTION_DOWN) viewerDownX=e.getX();
-        if(e.getActionMasked()==MotionEvent.ACTION_UP && viewerScaleFactor<=1.01f && Math.abs(e.getX()-viewerDownX)>dp(70)) { if(e.getX()<viewerDownX) showViewerItem(viewerIndex+1); else showViewerItem(viewerIndex-1); }
-        if(viewerScale==null) viewerScale=new ScaleGestureDetector(this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){
-            @Override public boolean onScale(ScaleGestureDetector d) {
-                viewerScaleFactor=Math.max(1f,Math.min(5f,viewerScaleFactor*d.getScaleFactor()));
-                viewerImage.setScaleX(viewerScaleFactor); viewerImage.setScaleY(viewerScaleFactor); return true;
-            }
-        });
-        viewerScale.onTouchEvent(e); return true;
-    }
-
     void openEditor(MediaItemData item) {
         new Thread(()->{
             try {
@@ -395,18 +405,14 @@ public class MainActivity extends Activity {
         Dialog d=new Dialog(this,android.R.style.Theme_Material_NoActionBar_Fullscreen);
         FrameLayout box=new FrameLayout(this);
         box.setBackgroundColor(Color.rgb(8,10,13));
-        ImageView image=new ImageView(this);
+        io.getstream.photoview.PhotoView image=new io.getstream.photoview.PhotoView(this);
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        image.setZoomable(true);
+        image.setMaximumScale(6f);
+        image.setMediumScale(2.5f);
+        image.setMinimumScale(1f);
         image.setImageBitmap(editorBitmap);
         box.addView(image,new FrameLayout.LayoutParams(-1,-1));
-        ScaleGestureDetector scale=new ScaleGestureDetector(this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){
-            float factor=1f;
-            @Override public boolean onScale(ScaleGestureDetector detector){
-                factor*=detector.getScaleFactor(); factor=Math.max(.7f,Math.min(5f,factor));
-                image.setScaleX(factor); image.setScaleY(factor); return true;
-            }
-        });
-        image.setOnTouchListener((v,e)->scale.onTouchEvent(e));
         LinearLayout bar=new LinearLayout(this);
         bar.setGravity(Gravity.CENTER);
         bar.setPadding(dp(8),dp(8),dp(8),dp(12));
@@ -425,6 +431,7 @@ public class MainActivity extends Activity {
             Matrix m=new Matrix(); m.postRotate(90);
             editorBitmap=Bitmap.createBitmap(editorBitmap,0,0,editorBitmap.getWidth(),editorBitmap.getHeight(),m,true);
             image.setImageBitmap(editorBitmap);
+            image.setScale(1f, false);
         });
         save.setOnClickListener(v->{ saveEditedPhoto(item,editorBitmap); d.dismiss(); });
         cancel.setOnClickListener(v->d.dismiss());
@@ -433,18 +440,92 @@ public class MainActivity extends Activity {
 
     void openCropDialog(ImageView image) {
         if(editorBitmap==null)return;
-        Dialog cd=new Dialog(this,android.R.style.Theme_Material_NoActionBar_Fullscreen);
-        LinearLayout box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setBackgroundColor(Color.BLACK);
-        CropToolView cv=new CropToolView(this,editorBitmap);
-        box.addView(cv,new LinearLayout.LayoutParams(-1,0,1));
-        LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER);
-        Button cancel=smallButton("Cancel"), apply=smallButton("Crop");
-        bar.addView(cancel,new LinearLayout.LayoutParams(0,dp(60),1)); bar.addView(apply,new LinearLayout.LayoutParams(0,dp(60),1));
-        box.addView(bar,new LinearLayout.LayoutParams(-1,dp(72)));
-        cancel.setOnClickListener(v->cd.dismiss());
-        apply.setOnClickListener(v->{ Bitmap b=cv.getCroppedBitmap(); if(b!=null){ editorBitmap=b; image.setImageBitmap(b); image.setScaleX(1); image.setScaleY(1); } cd.dismiss(); });
-        cd.setContentView(box); cd.show();
+        try {
+            ContentValues values=new ContentValues();
+            values.put(MediaStore.Images.Media.DISPLAY_NAME,"ShortVid_Crop_"+System.currentTimeMillis()+".jpg");
+            values.put(MediaStore.Images.Media.MIME_TYPE,"image/jpeg");
+            if(Build.VERSION.SDK_INT>=29){
+                values.put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/ShortVid");
+                values.put(MediaStore.Images.Media.IS_PENDING,1);
+            }
+            pendingCropUri=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);
+            if(pendingCropUri==null) throw new Exception("Couldn't create crop output");
+            pendingCropImage=image;
+
+            UCrop.Options options=new UCrop.Options();
+            options.setCompressionQuality(97);
+            options.setCompressionFormat(Bitmap.CompressFormat.JPEG);
+            options.setFreeStyleCropEnabled(true);
+            options.setShowCropGrid(true);
+            options.setShowCropFrame(true);
+            options.setHideBottomControls(false);
+            options.setAllowedGestures(UCropActivity.ALL,UCropActivity.ALL,UCropActivity.ALL);
+            options.setToolbarTitle("Crop photo");
+            options.setToolbarColor(Color.rgb(12,16,21));
+            options.setStatusBarColor(Color.BLACK);
+            options.setActiveControlsWidgetColor(Color.rgb(132,245,212));
+
+            UCrop.of(mediaUriForCropInput(editorBitmap),pendingCropUri)
+                    .withOptions(options)
+                    .start(this);
+        } catch(Exception ex) {
+            if(pendingCropUri!=null) getContentResolver().delete(pendingCropUri,null,null);
+            pendingCropUri=null; pendingCropImage=null;
+            toast("Couldn't open the crop editor.");
+        }
     }
+
+    Uri mediaUriForCropInput(Bitmap bitmap) throws Exception {
+        ContentValues values=new ContentValues();
+        values.put(MediaStore.Images.Media.DISPLAY_NAME,"ShortVid_Source_"+System.currentTimeMillis()+".jpg");
+        values.put(MediaStore.Images.Media.MIME_TYPE,"image/jpeg");
+        if(Build.VERSION.SDK_INT>=29){
+            values.put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/ShortVid");
+            values.put(MediaStore.Images.Media.IS_PENDING,1);
+        }
+        Uri input=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);
+        if(input==null) throw new Exception("Couldn't create crop input");
+        try(OutputStream os=getContentResolver().openOutputStream(input)){
+            if(!bitmap.compress(Bitmap.CompressFormat.JPEG,100,os)) throw new Exception("Couldn't write crop input");
+        }
+        if(Build.VERSION.SDK_INT>=29){
+            ContentValues done=new ContentValues();
+            done.put(MediaStore.Images.Media.IS_PENDING,0);
+            getContentResolver().update(input,done,null,null);
+        }
+        return input;
+    }
+
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data) {
+        super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode!=UCrop.REQUEST_CROP) return;
+        Uri output=pendingCropUri;
+        ImageView target=pendingCropImage;
+        pendingCropUri=null; pendingCropImage=null;
+        if(resultCode==RESULT_OK && output!=null) {
+            try {
+                if(Build.VERSION.SDK_INT>=29){
+                    ContentValues done=new ContentValues();
+                    done.put(MediaStore.Images.Media.IS_PENDING,0);
+                    getContentResolver().update(output,done,null,null);
+                }
+                Bitmap cropped=loadFullBitmap(output);
+                editorBitmap=cropped;
+                if(target!=null){
+                    target.setImageBitmap(cropped);
+                    if(target instanceof io.getstream.photoview.PhotoView)
+                        ((io.getstream.photoview.PhotoView)target).setScale(1f,false);
+                }
+                toast("Crop applied.");
+            } catch(Exception ex) {
+                getContentResolver().delete(output,null,null);
+                toast("Couldn't apply the crop.");
+            }
+        } else if(output!=null) {
+            getContentResolver().delete(output,null,null);
+        }
+    }
+
     void saveEditedPhoto(MediaItemData original, Bitmap bitmap) {
         if(bitmap==null)return;
         new Thread(()->{
