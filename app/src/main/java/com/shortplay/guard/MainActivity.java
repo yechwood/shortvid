@@ -271,7 +271,7 @@ public class MainActivity extends Activity {
         viewerDialog=new Dialog(this,android.R.style.Theme_Material_NoActionBar_Fullscreen);
         viewerBox=new SwipeFrameLayout(this);
         viewerBox.setBackgroundColor(Color.BLACK);
-        viewerImage=new io.getstream.photoview.PhotoView(this);
+        viewerImage=new com.github.chrisbanes.photoview.PhotoView(this);
         viewerImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
         viewerImage.setZoomable(true);
         viewerImage.setMaximumScale(6f);
@@ -283,7 +283,7 @@ public class MainActivity extends Activity {
                 viewerTouchTracking=true;
             } else if(e.getActionMasked()==MotionEvent.ACTION_UP && viewerTouchTracking){
                 viewerTouchTracking=false;
-                io.getstream.photoview.PhotoView pv=(io.getstream.photoview.PhotoView)v;
+                com.github.chrisbanes.photoview.PhotoView pv=(com.github.chrisbanes.photoview.PhotoView)v;
                 if(pv.getScale()<=1.05f && Math.abs(e.getX()-viewerDownX)>dp(70)){
                     if(e.getX()<viewerDownX) showViewerItem(viewerIndex+1);
                     else showViewerItem(viewerIndex-1);
@@ -358,7 +358,7 @@ public class MainActivity extends Activity {
         MediaItemData item=media.get(index);
         viewerTitle.setText((index+1)+" / "+media.size()+"  "+item.name);
         releaseViewerPlayer();
-        ((io.getstream.photoview.PhotoView)viewerImage).setScale(1f, false);
+        ((com.github.chrisbanes.photoview.PhotoView)viewerImage).setScale(1f, false);
         viewerImage.setVisibility(item.video?View.GONE:View.VISIBLE);
         viewerPlayer.setVisibility(item.video?View.VISIBLE:View.GONE);
         if(item.video) {
@@ -420,7 +420,7 @@ public class MainActivity extends Activity {
         Dialog d=new Dialog(this,android.R.style.Theme_Material_NoActionBar_Fullscreen);
         FrameLayout box=new FrameLayout(this);
         box.setBackgroundColor(Color.rgb(8,10,13));
-        io.getstream.photoview.PhotoView image=new io.getstream.photoview.PhotoView(this);
+        com.github.chrisbanes.photoview.PhotoView image=new com.github.chrisbanes.photoview.PhotoView(this);
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
         image.setZoomable(true);
         image.setMaximumScale(6f);
@@ -528,8 +528,8 @@ public class MainActivity extends Activity {
                 editorBitmap=cropped;
                 if(target!=null){
                     target.setImageBitmap(cropped);
-                    if(target instanceof io.getstream.photoview.PhotoView)
-                        ((io.getstream.photoview.PhotoView)target).setScale(1f,false);
+                    if(target instanceof com.github.chrisbanes.photoview.PhotoView)
+                        ((com.github.chrisbanes.photoview.PhotoView)target).setScale(1f,false);
                 }
                 toast("Crop applied.");
             } catch(Exception ex) {
