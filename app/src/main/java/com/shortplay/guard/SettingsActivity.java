@@ -56,18 +56,18 @@ public class SettingsActivity extends AppCompatActivity {
         appearance.addView(tv("Theme",17));appearance.addView(desc("Choose how ShortVid looks."));
         RadioGroup tg=new RadioGroup(this);String[] themes={"Dark","Light","System"};int savedTheme=prefs.getInt("theme",0);
         for(int i=0;i<themes.length;i++){MaterialRadioButton r=new MaterialRadioButton(this);r.setText(themes[i]);r.setTextColor(fg());r.setTextSize(15);r.setPadding(0,dp(4),0,dp(4));r.setTag(i);tg.addView(r);if(i==savedTheme)r.setChecked(true);}
-        tg.setOnCheckedChangeListener((g,id)->{View v=g.findViewById(id);if(v!=null){int value=(Integer)v.getTag();prefs.edit().putInt("theme",value).apply();}});
+        tg.setOnCheckedChangeListener((g,id)->{View v=g.findViewById(id);if(v!=null){int value=(Integer)v.getTag();prefs.edit().putInt("theme",value).apply();ThemeUtils.applyNightMode(this);}});
         appearance.addView(tg);content.addView(appearance);
 
         content.addView(section("Gallery"));
         LinearLayout gallery=cardLayout();
         gallery.addView(tv("Grid size",17));gallery.addView(desc("Control how many items appear across the screen."));
         RadioGroup cg=new RadioGroup(this);String[] cols={"Automatic","2 columns","3 columns","4 columns"};int savedCols=prefs.getInt("columns",0);
-        for(int i=0;i<cols.length;i++){RadioButton r=new RadioButton(this);r.setText(cols[i]);r.setTextColor(fg());r.setTextSize(15);r.setTag(i);cg.addView(r);if(i==savedCols)r.setChecked(true);}
+        for(int i=0;i<cols.length;i++){MaterialRadioButton r=new MaterialRadioButton(this);r.setText(cols[i]);r.setTextColor(fg());r.setTextSize(15);r.setTag(i);cg.addView(r);if(i==savedCols)r.setChecked(true);}
         cg.setOnCheckedChangeListener((g,id)->{View v=g.findViewById(id);if(v!=null)prefs.edit().putInt("columns",(Integer)v.getTag()).apply();});gallery.addView(cg);
         gallery.addView(tv("Sort order",17));gallery.addView(desc("Choose how media is arranged."));
         RadioGroup sg=new RadioGroup(this);String[] sorts={"Newest first","Oldest first","Name"};String sort=prefs.getString("sort","newest");int si=sort.equals("oldest")?1:sort.equals("name")?2:0;
-        for(int i=0;i<sorts.length;i++){RadioButton r=new RadioButton(this);r.setText(sorts[i]);r.setTextColor(fg());r.setTextSize(15);r.setTag(i);sg.addView(r);if(i==si)r.setChecked(true);}
+        for(int i=0;i<sorts.length;i++){MaterialRadioButton r=new MaterialRadioButton(this);r.setText(sorts[i]);r.setTextColor(fg());r.setTextSize(15);r.setTag(i);sg.addView(r);if(i==si)r.setChecked(true);}
         sg.setOnCheckedChangeListener((g,id)->{View v=g.findViewById(id);if(v!=null){int i=(Integer)v.getTag();prefs.edit().putString("sort",i==1?"oldest":i==2?"name":"newest").apply();}});
         gallery.addView(sg);content.addView(gallery);
 
@@ -93,5 +93,5 @@ public class SettingsActivity extends AppCompatActivity {
 
         scroll.setClipToPadding(false);scroll.setPadding(0,0,0,dp(8));scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);ThemeUtils.insetRoot(root,dp(14),dp(10),dp(14),dp(18));
     }
-    @Override protected void onResume(){super.onResume();if(root!=null)build();}
+    @Override protected void onResume(){super.onResume();if(root!=null && !isFinishing())build();}
 }
