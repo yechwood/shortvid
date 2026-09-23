@@ -177,7 +177,26 @@ public class MainActivity extends Activity {
     }
     void askNewFolder(){EditText e=new EditText(this);e.setHint("Folder name, e.g. Vacation");new AlertDialog.Builder(this).setTitle("New folder").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Move", (d,w)->{String n=e.getText().toString().trim();if(!n.isEmpty())moveToFolder("Pictures/"+n);}).show();}
     void moveToFolder(String folder){
-        final String target=folder.endsWith("/")?folder:folder+"/";new Thread(()->{int ok=0;for(MediaItemData x:new ArrayList<>(selected)){try{ContentValues cv=new ContentValues();cv.put(MediaStore.MediaColumns.RELATIVE_PATH,target);if(getContentResolver().update(x.uri,cv,null,null)>0)ok++;}catch(Exception ignored){}}runOnUiThread(()->{toast("Moved "+ok+" item"+(ok==1?"":"s")+" to "+target);selectionMode=false;selected.clear();currentFolder=null;folderMode=false;showHome();});}).start();
+        final String target=folder.endsWith("/")?folder:folder+"/";
+        final ArrayList<MediaItemData> moving=new ArrayList<>(selected);
+        new Thread(()->{
+            int ok=0;
+            for(MediaItemData x:moving){
+                try{
+                    String t=target;
+                    if(x.video && t.startsWith("Pictures/")) t="Movies/"+t.substring(9);
+                    if(!x.video && t.startsWith("Movies/")) t="Pictures/"+t.substring(7);
+                    ContentValues cv=new ContentValues();
+                    cv.put(MediaStore.MediaColumns.RELATIVE_PATH,t);
+                    if(getContentResolver().update(x.uri,cv,null,null)>0) ok++;
+                }catch(Exception ignored){}
+            }
+            final int moved=ok;
+            runOnUiThread(()->{
+                toast("Moved "+moved+" item"+(moved==1?"":"s")+" to "+target);
+                selectionMode=false;selected.clear();currentFolder=null;folderMode=false;showHome();
+            });
+        }).start();
     }
 
     void openSettings(){
