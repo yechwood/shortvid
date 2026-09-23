@@ -105,7 +105,9 @@ public class MainActivity extends Activity {
     }
     void buildVisible(){
         visible.clear();
-        if(currentFolder==null)visible.addAll(media);else for(MediaItemData x:media)if(x.folder.equals(currentFolder))visible.add(x);
+        boolean showVideos=prefs.getBoolean("show_videos",true), showPhotos=prefs.getBoolean("show_photos",true);
+        if(currentFolder==null) for(MediaItemData x:media) if((x.video&&showVideos)||(!x.video&&showPhotos)) visible.add(x);
+        else for(MediaItemData x:media) if(x.folder.equals(currentFolder)&&((x.video&&showVideos)||(!x.video&&showPhotos))) visible.add(x);
     }
     void render(){
         buildVisible();
@@ -139,7 +141,7 @@ public class MainActivity extends Activity {
         viewerPlayer=new PlayerView(this);viewerPlayer.setUseController(true);viewerPlayer.setControllerAutoShow(true);viewerPlayer.setControllerHideOnTouch(true);viewerPlayer.setControllerShowTimeoutMs(2500);viewerPlayer.setResizeMode(androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT);viewerPlayer.setVisibility(View.GONE);box.addView(viewerPlayer,new FrameLayout.LayoutParams(-1,-1));
         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(8),dp(18),dp(8),0);top.setBackgroundColor(Color.argb(120,0,0,0));
         Button back=smallButton("‹");viewerTitle=text("",13);viewerTitle.setGravity(Gravity.CENTER);viewerTitle.setSingleLine(true);Button more=smallButton("⋮");top.addView(back,new LinearLayout.LayoutParams(dp(52),dp(48)));top.addView(viewerTitle,new LinearLayout.LayoutParams(0,dp(48),1));top.addView(more,new LinearLayout.LayoutParams(dp(52),dp(42)));box.addView(top,new FrameLayout.LayoutParams(-1,dp(74),Gravity.TOP));
-        back.setOnClickListener(v->viewerDialog.dismiss());more.setOnClickListener(v->{if(viewerIndex>=0)showMediaDetails(media.get(viewerIndex));});
+        back.setOnClickListener(v->viewerDialog.dismiss());more.setOnClickListener(v->{if(viewerIndex>=0)showMediaMenu(media.get(viewerIndex));});
         viewerDialog.setContentView(box);viewerDialog.setOnDismissListener(v->{releaseViewerPlayer();restorePosition();});viewerDialog.setOnShowListener(v->{viewerDialog.getWindow().getDecorView().setSystemUiVisibility(5894);});viewerDialog.show();viewerDialog.getWindow().getDecorView().setSystemUiVisibility(5894);showViewerItem(index);
     }
     void animateViewerTo(int n,boolean forward){if(viewerIndex<0)return;final float w=Math.max(1,viewerImage.getWidth());viewerImage.animate().translationX(forward?-w:w).setDuration(140).withEndAction(()->{viewerImage.setTranslationX(forward?w:-w);showViewerItem(n);viewerImage.animate().translationX(0).setDuration(190).setInterpolator(new android.view.animation.DecelerateInterpolator()).start();}).start();}
@@ -166,6 +168,25 @@ public class MainActivity extends Activity {
         }catch(Exception e){toast("Couldn't open the crop editor: "+e.getMessage());}
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(requestCode==UCrop.REQUEST_CROP){if(resultCode==RESULT_OK){try{Uri u=UCrop.getOutput(data);editorBitmap=loadFullBitmap(u);if(editorImage!=null){editorImage.setImageBitmap(editorBitmap);editorImage.setScale(1f,false);}toast("Crop applied. Tap “Save crop” to keep it.");}catch(Exception e){toast("Couldn't apply the crop.");}}else if(resultCode==UCrop.RESULT_ERROR){Throwable e=UCrop.getError(data);toast("Crop failed"+(e==null?"":" : "+e.getMessage()));}}}
+    void showMediaMenu(MediaItemData x){
+        LinearLayout box=new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(18),dp(8),dp(18),dp(8));
+        TextView title=text(x.name,19); title.setTextColor(themeText()); title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        box.addView(title,new LinearLayout.LayoutParams(-1,dp(48)));
+        if(!x.video){
+            Button edit=new Button(this); edit.setText("Edit photo"); edit.setAllCaps(false); edit.setTextSize(15);
+            box.addView(edit,new LinearLayout.LayoutParams(-1,dp(52)));
+            edit.setOnClickListener(v->{openEditor(x);});
+        }
+        Button details=new Button(this); details.setText("Details"); details.setAllCaps(false); details.setTextSize(15);
+        box.addView(details,new LinearLayout.LayoutParams(-1,dp(52)));
+        final Dialog menu=new AlertDialog.Builder(this).setView(box).create();
+        details.setOnClickListener(v->{menu.dismiss();showMediaDetails(x);});
+        if(!x.video) box.getChildAt(1).setOnClickListener(v->{menu.dismiss();openEditor(x);});
+        menu.show();
+    }
+
     void showMediaDetails(MediaItemData x){
         if(x==null)return;
         if(Build.VERSION.SDK_INT>=29 && !x.video && checkSelfPermission(Manifest.permission.ACCESS_MEDIA_LOCATION)!=PackageManager.PERMISSION_GRANTED){
@@ -230,15 +251,7 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    void openSettings(){
-        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(8),dp(20),dp(8));
-        TextView title=text("Gallery settings",21);title.setTextColor(themeText());box.addView(title);
-        String[] themes={"Dark","Light","System"};RadioGroup tg=new RadioGroup(this);for(String s:themes){RadioButton r=new RadioButton(this);r.setText(s);r.setTextColor(themeText());tg.addView(r);};((RadioButton)tg.getChildAt(prefs.getInt("theme",0))).setChecked(true);box.addView(tg);tg.setOnCheckedChangeListener((g,id)->{prefs.edit().putInt("theme",g.indexOfChild(g.findViewById(id))).apply();});
-        String[] cols={"Automatic","2 columns","3 columns","4 columns"};Spinner cs=new Spinner(this);ArrayAdapter<String>a=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,cols);cs.setAdapter(a);cs.setSelection(prefs.getInt("columns",0));box.addView(label("Grid size"));box.addView(cs);
-        String[] sorts={"Newest first","Oldest first","Name"};Spinner ss=new Spinner(this);ArrayAdapter<String>b=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,sorts);ss.setAdapter(b);ss.setSelection(prefs.getString("sort","newest").equals("oldest")?1:prefs.getString("sort","newest").equals("name")?2:0);box.addView(label("Sort order"));box.addView(ss);
-        Switch showV=new Switch(this);showV.setText("Show videos");showV.setTextColor(themeText());showV.setChecked(prefs.getBoolean("show_videos",true));box.addView(showV);Switch showP=new Switch(this);showP.setText("Show photos");showP.setTextColor(themeText());showP.setChecked(prefs.getBoolean("show_photos",true));box.addView(showP);
-        new AlertDialog.Builder(this).setView(box).setPositiveButton("Apply",(d,w)->{int ci=cs.getSelectedItemPosition();prefs.edit().putInt("columns",ci).putString("sort",ss.getSelectedItemPosition()==1?"oldest":ss.getSelectedItemPosition()==2?"name":"newest").putBoolean("show_videos",showV.isChecked()).putBoolean("show_photos",showP.isChecked()).apply();applyFilters();showHome();}).setNegativeButton("Cancel",null).show();
-    }
+    void openSettings(){ startActivity(new Intent(this,SettingsActivity.class)); }
     TextView label(String s){TextView t=text(s,12);t.setTextColor(Color.GRAY);t.setPadding(0,dp(10),0,0);return t;}
     void applyFilters(){sortMedia();}
     Button smallButton(String s){Button b=new Button(this);b.setText(s);b.setTextSize(11);b.setTextColor(Color.WHITE);b.setAllCaps(false);b.setBackground(rounded(Color.argb(175,35,42,50),18));return b;}
