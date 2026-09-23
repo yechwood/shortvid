@@ -73,6 +73,11 @@ public class MainActivity extends AppCompatActivity {
     int themeMuted(){return ThemeUtils.onSurfaceVariant(this);}
 
     void showHome(){
+        if(prefs.getBoolean("remember_folder_view",false) && currentFolder==null){
+            String remembered=prefs.getString("remembered_folder",null);
+            if(remembered!=null && !remembered.isEmpty()) currentFolder=remembered;
+            folderMode=prefs.getBoolean("remembered_folder_mode",false);
+        }
         root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(12),dp(8),dp(12),dp(8));root.setBackgroundColor(themeBg());
         header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(0,0,0,dp(6));
         TextView title=text(selectionMode?"Select media":"ShortVid",27);title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);header.addView(title,new LinearLayout.LayoutParams(0,dp(52),1));
@@ -87,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(root);
         ThemeUtils.insetRoot(root,dp(12),dp(8),dp(12),dp(8));
         loadClips();render();
-        foldersBtn.setOnClickListener(v->{folderMode=!folderMode;currentFolder=null;showHome();});
+        foldersBtn.setOnClickListener(v->{folderMode=!folderMode;currentFolder=null;if(prefs.getBoolean("remember_folder_view",false))prefs.edit().putBoolean("remembered_folder_mode",folderMode).remove("remembered_folder").apply();showHome();});
         settings.setOnClickListener(v->openSettings());
     }
 
@@ -257,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
             final int moved=ok;
             runOnUiThread(()->{
                 toast("Moved "+moved+" item"+(moved==1?"":"s")+" to "+target);
-                selectionMode=false;selected.clear();currentFolder=null;folderMode=false;showHome();
+                selectionMode=false;selected.clear();currentFolder=null;folderMode=false;if(prefs.getBoolean("remember_folder_view",false))prefs.edit().remove("remembered_folder").putBoolean("remembered_folder_mode",false).apply();showHome();
             });
         }).start();
     }
