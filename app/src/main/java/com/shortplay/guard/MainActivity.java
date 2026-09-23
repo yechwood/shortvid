@@ -267,6 +267,7 @@ public class MainActivity extends Activity {
         viewerBox.setBackgroundColor(Color.BLACK);
         viewerImage=new ImageView(this);
         viewerImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        viewerImage.setOnTouchListener((v,e)->handleViewerZoomTouch(e));
         viewerBox.addView(viewerImage,new FrameLayout.LayoutParams(-1,-1));
 
         viewerPlayer=new PlayerView(this);
@@ -328,8 +329,7 @@ public class MainActivity extends Activity {
             new Thread(()->{
                 try {
                     Bitmap b;
-                    if(Build.VERSION.SDK_INT>=29) b=getContentResolver().loadThumbnail(item.uri,new android.util.Size(dp(1400),dp(1400)),null);
-                    else b=MediaStore.Images.Media.getBitmap(getContentResolver(),item.uri);
+                    b=loadFullBitmap(item.uri);
                     runOnUiThread(()->{ if(viewerIndex==index) viewerImage.setImageBitmap(b); });
                 } catch(Exception ignored) {}
             }).start();
@@ -358,12 +358,30 @@ public class MainActivity extends Activity {
         if(viewerPlayer!=null) viewerPlayer.setPlayer(null);
     }
 
+    Bitmap loadFullBitmap(Uri uri) throws Exception {
+        try (java.io.InputStream in=getContentResolver().openInputStream(uri)) {
+            Bitmap b=BitmapFactory.decodeStream(in);
+            if(b==null) throw new Exception("decode failed");
+            return b;
+        }
+    }
+
+    ScaleGestureDetector viewerScale;
+    float viewerScaleFactor=1f;
+    boolean handleViewerZoomTouch(MotionEvent e) {
+        if(viewerScale==null) viewerScale=new ScaleGestureDetector(this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){
+            @Override public boolean onScale(ScaleGestureDetector d) {
+                viewerScaleFactor=Math.max(1f,Math.min(5f,viewerScaleFactor*d.getScaleFactor()));
+                viewerImage.setScaleX(viewerScaleFactor); viewerImage.setScaleY(viewerScaleFactor); return true;
+            }
+        });
+        viewerScale.onTouchEvent(e); return true;
+    }
+
     void openEditor(MediaItemData item) {
         new Thread(()->{
             try {
-                Bitmap b=Build.VERSION.SDK_INT>=29
-                        ?getContentResolver().loadThumbnail(item.uri,new android.util.Size(dp(1600),dp(1600)),null)
-                        :MediaStore.Images.Media.getBitmap(getContentResolver(),item.uri);
+                Bitmap b=loadFullBitmap(item.uri);
                 editorBitmap=b;
                 runOnUiThread(()->showEditor(item));
             } catch(Exception e){ runOnUiThread(()->toast("Couldn't load this picture for editing.")); }
