@@ -319,6 +319,7 @@ public class MainActivity extends Activity {
         MediaItemData item=media.get(index);
         viewerTitle.setText((index+1)+" / "+media.size()+"  "+item.name);
         releaseViewerPlayer();
+        viewerScaleFactor=1f; viewerImage.setScaleX(1f); viewerImage.setScaleY(1f);
         viewerImage.setVisibility(item.video?View.GONE:View.VISIBLE);
         viewerPlayer.setVisibility(item.video?View.VISIBLE:View.GONE);
         if(item.video) {
@@ -367,8 +368,10 @@ public class MainActivity extends Activity {
     }
 
     ScaleGestureDetector viewerScale;
-    float viewerScaleFactor=1f;
+    float viewerScaleFactor=1f; float viewerDownX;
     boolean handleViewerZoomTouch(MotionEvent e) {
+        if(e.getActionMasked()==MotionEvent.ACTION_DOWN) viewerDownX=e.getX();
+        if(e.getActionMasked()==MotionEvent.ACTION_UP && viewerScaleFactor<=1.01f && Math.abs(e.getX()-viewerDownX)>dp(70)) { if(e.getX()<viewerDownX) showViewerItem(viewerIndex+1); else showViewerItem(viewerIndex-1); }
         if(viewerScale==null) viewerScale=new ScaleGestureDetector(this,new ScaleGestureDetector.SimpleOnScaleGestureListener(){
             @Override public boolean onScale(ScaleGestureDetector d) {
                 viewerScaleFactor=Math.max(1f,Math.min(5f,viewerScaleFactor*d.getScaleFactor()));
