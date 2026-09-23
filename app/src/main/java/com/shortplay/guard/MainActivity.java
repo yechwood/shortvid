@@ -14,6 +14,8 @@ import android.view.*;
 import android.widget.*;
 import android.media.MediaMetadataRetriever;
 import androidx.exifinterface.media.ExifInterface;
+import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.button.MaterialButton;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -25,7 +27,7 @@ import com.yalantis.ucrop.UCropActivity;
 import java.io.*;
 import java.util.*;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
     static final long DEFAULT_MAX_MS=300000L;
     static final String DEFAULT_GUARDIAN_EMAIL="kedemwoodlake@gmail.com";
     LinearLayout root,header;
@@ -51,31 +53,35 @@ public class MainActivity extends Activity {
     int savedFirst=-1,savedOffset=0;
 
     @Override public void onCreate(Bundle b){
+        ThemeUtils.applyNightMode(this);
         super.onCreate(b);
+        ThemeUtils.applyWindow(this);
         prefs=getSharedPreferences("guard",MODE_PRIVATE);
         showHome();
     }
     int dp(float v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
-    TextView text(String s,float z){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(Color.WHITE);return t;}
+    TextView text(String s,float z){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(themeText());return t;}
     GradientDrawable rounded(int c,float r){GradientDrawable g=new GradientDrawable();g.setColor(c);g.setCornerRadius(dp(r));return g;}
     long getMaxMs(){return prefs.getLong("max_ms",DEFAULT_MAX_MS);}
-    int themeBg(){return prefs.getInt("theme",0)==1?Color.rgb(247,248,250):Color.rgb(7,13,20);}
-    int themeCard(){return prefs.getInt("theme",0)==1?Color.WHITE:Color.rgb(18,27,36);}
-    int themeText(){return prefs.getInt("theme",0)==1?Color.rgb(25,32,40):Color.WHITE;}
+    int themeBg(){return ThemeUtils.surface(this);}
+    int themeCard(){return ThemeUtils.surfaceContainer(this);}
+    int themeText(){return ThemeUtils.onSurface(this);}
+    int themeMuted(){return ThemeUtils.onSurfaceVariant(this);}
 
     void showHome(){
-        root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(10),dp(6),dp(10),0);root.setBackgroundColor(themeBg());
-        header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
+        root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(12),dp(8),dp(12),dp(8));root.setBackgroundColor(themeBg());
+        header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(0,0,0,dp(6));
         TextView title=text(selectionMode?"Select media":"ShortVid",27);title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);header.addView(title,new LinearLayout.LayoutParams(0,dp(52),1));
-        Button foldersBtn=smallButton(folderMode?"All":"Folders");header.addView(foldersBtn,new LinearLayout.LayoutParams(dp(78),dp(42)));
-        Button settings=smallButton("⚙");header.addView(settings,new LinearLayout.LayoutParams(dp(50),dp(42)));
+        Button foldersBtn=smallButton(folderMode?"All media":"Folders");header.addView(foldersBtn,new LinearLayout.LayoutParams(dp(78),dp(42)));
+        Button settings=smallButton("Settings");header.addView(settings,new LinearLayout.LayoutParams(dp(50),dp(42)));
         if(!selectionMode){Button select=smallButton("Select");header.addView(select,new LinearLayout.LayoutParams(dp(76),dp(42)));select.setOnClickListener(v->{selectionMode=true;selected.clear();showHome();});}
         else {Button move=smallButton("Move");header.addView(move,new LinearLayout.LayoutParams(dp(72),dp(42)));move.setOnClickListener(v->moveSelected());Button done=smallButton("Done");header.addView(done,new LinearLayout.LayoutParams(dp(66),dp(42)));done.setOnClickListener(v->{selectionMode=false;selected.clear();showHome();});}
         root.addView(header);
         TextView sub=text(folderMode?(currentFolder==null?"All folders":"Folder: "+currentFolder):(currentFolder==null?"Photos & videos":"Folder: "+currentFolder),13);
-        sub.setTextColor(prefs.getInt("theme",0)==1?Color.DKGRAY:Color.rgb(160,174,184));root.addView(sub,new LinearLayout.LayoutParams(-1,dp(28)));
+        sub.setTextColor(themeMuted());root.addView(sub,new LinearLayout.LayoutParams(-1,dp(28)));
         gallery=new RecyclerView(this);gallery.setClipToPadding(false);gallery.setPadding(0,dp(4),0,dp(16));gallery.setItemViewCacheSize(16);root.addView(gallery,new LinearLayout.LayoutParams(-1,0,1));
         setContentView(root);
+        ThemeUtils.insetRoot(root,dp(12),dp(8),dp(12),dp(8));
         loadClips();render();
         foldersBtn.setOnClickListener(v->{folderMode=!folderMode;currentFolder=null;showHome();});
         settings.setOnClickListener(v->openSettings());
@@ -115,7 +121,7 @@ public class MainActivity extends Activity {
         if(visible.isEmpty()){gallery.setLayoutManager(new GridLayoutManager(this,1));gallery.setAdapter(new EmptyAdapter());return;}
         int w=getResources().getConfiguration().screenWidthDp;int c=prefs.getInt("columns",0);if(c==0)c=w>=600?4:(w<=360?2:3);gallery.setLayoutManager(new GridLayoutManager(this,c));gallery.setAdapter(new GalleryAdapter());
     }
-    class EmptyAdapter extends RecyclerView.Adapter<EmptyAdapter.VH>{class VH extends RecyclerView.ViewHolder{VH(View v){super(v);}}public VH onCreateViewHolder(ViewGroup p,int t){TextView v=text("No photos or videos found",16);v.setGravity(Gravity.CENTER);v.setTextColor(Color.GRAY);return new VH(v);}public void onBindViewHolder(VH h,int p){}public int getItemCount(){return 1;}}
+    class EmptyAdapter extends RecyclerView.Adapter<EmptyAdapter.VH>{class VH extends RecyclerView.ViewHolder{VH(View v){super(v);}}public VH onCreateViewHolder(ViewGroup p,int t){LinearLayout box=new LinearLayout(MainActivity.this);box.setOrientation(LinearLayout.VERTICAL);box.setGravity(Gravity.CENTER);TextView icon=text("✦",38);icon.setGravity(Gravity.CENTER);TextView title=text("No media yet",20);title.setGravity(Gravity.CENTER);TextView sub=text("Photos and videos from your device will appear here.",13);sub.setTextColor(themeMuted());sub.setGravity(Gravity.CENTER);box.addView(icon);box.addView(title);box.addView(sub);return new VH(box);}public void onBindViewHolder(VH h,int p){}public int getItemCount(){return 1;}}
     class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.VH>{
         ArrayList<String> list;FolderAdapter(ArrayList<String> l){list=l;Collections.sort(list,String.CASE_INSENSITIVE_ORDER);}
         class VH extends RecyclerView.ViewHolder{TextView title,count;VH(View v,TextView t,TextView c){super(v);title=t;count=c;}}
@@ -126,7 +132,7 @@ public class MainActivity extends Activity {
     class GalleryAdapter extends RecyclerView.Adapter<GalleryAdapter.VH>{
         class VH extends RecyclerView.ViewHolder{ImageView thumb;TextView name,badge;VH(View v,ImageView i,TextView n,TextView b){super(v);thumb=i;name=n;badge=b;}}
         public VH onCreateViewHolder(ViewGroup p,int t){int w=getResources().getConfiguration().screenWidthDp;int h=w<=360?194:158;LinearLayout card=new LinearLayout(MainActivity.this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(3,3,3,5);card.setBackground(rounded(themeCard(),14));FrameLayout fr=new FrameLayout(MainActivity.this);ImageView im=new ImageView(MainActivity.this);im.setScaleType(ImageView.ScaleType.CENTER_CROP);fr.addView(im,new FrameLayout.LayoutParams(-1,dp(112)));TextView b=text("",10);b.setGravity(Gravity.CENTER);FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(dp(58),dp(23),Gravity.BOTTOM|Gravity.END);bp.setMargins(0,0,dp(5),dp(5));fr.addView(b,bp);card.addView(fr);TextView n=text("",11);n.setSingleLine(true);n.setEllipsize(android.text.TextUtils.TruncateAt.END);n.setTextColor(themeText());n.setPadding(5,3,5,0);card.addView(n,new LinearLayout.LayoutParams(-1,dp(27)));RecyclerView.LayoutParams rp=new RecyclerView.LayoutParams(-1,dp(h));rp.setMargins(3,3,3,5);card.setLayoutParams(rp);return new VH(card,im,n,b);}
-        public void onBindViewHolder(VH h,int p){MediaItemData x=visible.get(p);h.name.setText(x.name);h.badge.setText(x.video?formatDuration(x.duration):"PHOTO");h.badge.setBackground(rounded(Color.argb(190,0,0,0),7));h.itemView.setAlpha(selectionMode&&selected.contains(x)?0.55f:1f);h.thumb.setTag(x.uri);loadThumbnail(x,h.thumb);h.itemView.setOnClickListener(v->{if(selectionMode){if(selected.contains(x))selected.remove(x);else selected.add(x);h.itemView.setAlpha(selected.contains(x)?0.55f:1f);}else openViewer(media.indexOf(x));});h.itemView.setOnLongClickListener(v->{if(!selectionMode){selectionMode=true;selected.clear();selected.add(x);showHome();}return true;});}
+        public void onBindViewHolder(VH h,int p){MediaItemData x=visible.get(p);h.name.setText(x.name);h.badge.setText(x.video?formatDuration(x.duration):"PHOTO");h.badge.setBackground(rounded(Color.argb(205,0,0,0),9));h.itemView.setAlpha(selectionMode&&selected.contains(x)?0.55f:1f);h.thumb.setTag(x.uri);loadThumbnail(x,h.thumb);h.itemView.setOnClickListener(v->{if(selectionMode){if(selected.contains(x))selected.remove(x);else selected.add(x);h.itemView.setAlpha(selected.contains(x)?0.55f:1f);}else openViewer(media.indexOf(x));});h.itemView.setOnLongClickListener(v->{if(!selectionMode){selectionMode=true;selected.clear();selected.add(x);showHome();}return true;});}
         public int getItemCount(){return visible.size();}
     }
     void loadThumbnail(MediaItemData x,ImageView target){Uri u=x.uri;new Thread(()->{Bitmap b=null;try{if(Build.VERSION.SDK_INT>=29)b=getContentResolver().loadThumbnail(u,new android.util.Size(dp(360),dp(300)),null);else if(x.video){MediaMetadataRetriever r=new MediaMetadataRetriever();r.setDataSource(this,u);b=r.getFrameAtTime(0,MediaMetadataRetriever.OPTION_CLOSEST_SYNC);r.release();}else{try(InputStream in=getContentResolver().openInputStream(u)){b=BitmapFactory.decodeStream(in);}}}catch(Exception ignored){}Bitmap z=b;runOnUiThread(()->{if(z!=null&&u.equals(target.getTag()))target.setImageBitmap(z);});}).start();}
@@ -183,7 +189,7 @@ public class MainActivity extends Activity {
         box.addView(details,new LinearLayout.LayoutParams(-1,dp(52)));
         final Dialog menu=new AlertDialog.Builder(this).setView(box).create();
         details.setOnClickListener(v->{menu.dismiss();showMediaDetails(x);});
-        if(!x.video) box.getChildAt(1).setOnClickListener(v->{menu.dismiss();openEditor(x);});
+        if(!x.video) edit.setOnClickListener(v->{menu.dismiss();openEditor(x);});
         menu.show();
     }
 
@@ -254,7 +260,7 @@ public class MainActivity extends Activity {
     void openSettings(){ startActivity(new Intent(this,SettingsActivity.class)); }
     TextView label(String s){TextView t=text(s,12);t.setTextColor(Color.GRAY);t.setPadding(0,dp(10),0,0);return t;}
     void applyFilters(){sortMedia();}
-    Button smallButton(String s){Button b=new Button(this);b.setText(s);b.setTextSize(11);b.setTextColor(Color.WHITE);b.setAllCaps(false);b.setBackground(rounded(Color.argb(175,35,42,50),18));return b;}
+    Button smallButton(String s){MaterialButton b=new MaterialButton(this);b.setText(s);b.setTextSize(12);b.setAllCaps(false);b.setMinHeight(dp(44));b.setMinimumHeight(dp(44));b.setInsetTop(0);b.setInsetBottom(0);b.setCornerRadius(dp(16));b.setContentPadding(dp(10),0,dp(10),0);b.setStateListAnimator(null);b.setContentDescription(s);return b;}
     String format(long ms){long sec=Math.max(0,ms/1000),m=sec/60,h=m/60;return h>0?h+"h "+m%60+"m":m+"m";}
     String formatDuration(long ms){long sec=Math.max(0,ms/1000);return String.format(Locale.US,"%d:%02d",(sec/60)%60,sec%60);}
     void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
