@@ -18,6 +18,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".AdminActivity" android:exported="false" />
+        <activity android:name="com.yalantis.ucrop.UCropActivity" android:screenOrientation="portrait" android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
         <receiver android:name=".SecretCodeReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.provider.Telephony.SECRET_CODE" />
