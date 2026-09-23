@@ -8,13 +8,15 @@ import android.graphics.drawable.GradientDrawable;
 import android.view.*;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
+import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.button.MaterialButton;
 import java.io.*;
 import java.net.*;
 import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.*;
 
-public class AdminActivity extends Activity {
+public class AdminActivity extends AppCompatActivity {
     static final String GUARDIAN = MainActivity.DEFAULT_GUARDIAN_EMAIL;
     static final String EMAIL_SEND_URL = "https://api.formsubmit.cc/submit";
     static final long RESEND_DELAY_MS = 60_000L;
@@ -32,7 +34,9 @@ public class AdminActivity extends Activity {
     }
 
     @Override public void onCreate(Bundle b) {
+        ThemeUtils.applyNightMode(this);
         super.onCreate(b);
+        ThemeUtils.applyWindow(this);
         showAuthorization();
     }
 
@@ -57,14 +61,14 @@ public class AdminActivity extends Activity {
     void base(LinearLayout r) {
         r.setOrientation(LinearLayout.VERTICAL);
         r.setPadding(dp(28), dp(36), dp(28), dp(28));
-        r.setBackgroundColor(Color.rgb(7,13,20));
+        r.setBackgroundColor(ThemeUtils.surface(this));
     }
 
     void showAuthorization() {
         LinearLayout r = new LinearLayout(this);
         base(r);
 
-        TextView title = t("Settings", 30);
+        TextView title = t("Guardian settings", 30);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         r.addView(title);
 
@@ -84,8 +88,8 @@ public class AdminActivity extends Activity {
 
         Button send = new Button(this);
         send.setText("Get code");
-        send.setTextColor(Color.rgb(7,20,27));
-        send.setBackground(rounded(Color.rgb(132,245,212), 18));
+        send.setTextColor(ThemeUtils.onSurface(this));
+        send.setBackground(rounded(ThemeUtils.primary(this), 18));
         LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(-1, dp(50));
         sp.topMargin = dp(14);
         r.addView(send, sp);
@@ -108,7 +112,7 @@ public class AdminActivity extends Activity {
         Button verify = new Button(this);
         verify.setText("Verify");
         verify.setTextColor(Color.WHITE);
-        verify.setBackground(rounded(Color.rgb(42,57,69), 18));
+        verify.setBackground(rounded(ThemeUtils.surfaceContainer(this), 18));
         verify.setVisibility(View.GONE);
         r.addView(verify, new LinearLayout.LayoutParams(-1, dp(50)));
 
@@ -175,6 +179,7 @@ public class AdminActivity extends Activity {
         });
 
         setContentView(r);
+        ThemeUtils.insetRoot(r,dp(28),dp(24),dp(28),dp(24));
     }
 
     SendResult sendCodeEmail(String code, String recipient) {
