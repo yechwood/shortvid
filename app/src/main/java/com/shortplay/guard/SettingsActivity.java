@@ -7,20 +7,26 @@ import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
 import android.view.*;
 import android.widget.*;
+import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.radiobutton.MaterialRadioButton;
+import com.google.android.material.materialswitch.MaterialSwitch;
 import java.util.*;
 
-public class SettingsActivity extends Activity {
+public class SettingsActivity extends AppCompatActivity {
     android.content.SharedPreferences prefs;
     LinearLayout root;
     int dp(float v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
-    int bg(){return prefs.getInt("theme",0)==1?Color.rgb(247,248,250):Color.rgb(7,13,20);}
-    int card(){return prefs.getInt("theme",0)==1?Color.WHITE:Color.rgb(18,27,36);}
-    int fg(){return prefs.getInt("theme",0)==1?Color.rgb(25,32,40):Color.WHITE;}
-    int muted(){return prefs.getInt("theme",0)==1?Color.rgb(95,105,115):Color.rgb(160,174,184);}
+    int bg(){return ThemeUtils.surface(this);}
+    int card(){return ThemeUtils.surfaceContainer(this);}
+    int fg(){return ThemeUtils.onSurface(this);}
+    int muted(){return ThemeUtils.onSurfaceVariant(this);}
     TextView tv(String s,float z){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(fg());return t;}
     GradientDrawable round(int c,float r){GradientDrawable g=new GradientDrawable();g.setColor(c);g.setCornerRadius(dp(r));return g;}
     @Override public void onCreate(Bundle b){
+        ThemeUtils.applyNightMode(this);
         super.onCreate(b);
+        ThemeUtils.applyWindow(this);
         prefs=getSharedPreferences("guard",MODE_PRIVATE);
         build();
     }
@@ -36,7 +42,7 @@ public class SettingsActivity extends Activity {
     void build(){
         root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(10),dp(14),dp(18));root.setBackgroundColor(bg());
         LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);
-        Button back=new Button(this);back.setText("‹");back.setTextSize(28);back.setTextColor(fg());back.setAllCaps(false);back.setBackgroundColor(Color.TRANSPARENT);
+        MaterialButton back=new MaterialButton(this);back.setText("Back");back.setTextSize(13);back.setTextColor(fg());back.setAllCaps(false);back.setCornerRadius(dp(16));
         bar.addView(back,new LinearLayout.LayoutParams(dp(52),dp(52)));
         LinearLayout titles=new LinearLayout(this);titles.setOrientation(LinearLayout.VERTICAL);
         TextView h=tv("Settings",25);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);titles.addView(h);
@@ -49,7 +55,7 @@ public class SettingsActivity extends Activity {
         LinearLayout appearance=cardLayout();
         appearance.addView(tv("Theme",17));appearance.addView(desc("Choose how ShortVid looks."));
         RadioGroup tg=new RadioGroup(this);String[] themes={"Dark","Light","System"};int savedTheme=prefs.getInt("theme",0);
-        for(int i=0;i<themes.length;i++){RadioButton r=new RadioButton(this);r.setText(themes[i]);r.setTextColor(fg());r.setTextSize(15);r.setPadding(0,dp(4),0,dp(4));r.setTag(i);tg.addView(r);if(i==savedTheme)r.setChecked(true);}
+        for(int i=0;i<themes.length;i++){MaterialRadioButton r=new MaterialRadioButton(this);r.setText(themes[i]);r.setTextColor(fg());r.setTextSize(15);r.setPadding(0,dp(4),0,dp(4));r.setTag(i);tg.addView(r);if(i==savedTheme)r.setChecked(true);}
         tg.setOnCheckedChangeListener((g,id)->{View v=g.findViewById(id);if(v!=null){int value=(Integer)v.getTag();prefs.edit().putInt("theme",value).apply();}});
         appearance.addView(tg);content.addView(appearance);
 
@@ -67,25 +73,25 @@ public class SettingsActivity extends Activity {
 
         content.addView(section("Media"));
         LinearLayout media=cardLayout();
-        Switch photos=new Switch(this);photos.setText("Show photos");photos.setTextColor(fg());photos.setTextSize(16);photos.setChecked(prefs.getBoolean("show_photos",true));photos.setPadding(0,dp(5),0,dp(5));media.addView(photos);
-        Switch videos=new Switch(this);videos.setText("Show videos");videos.setTextColor(fg());videos.setTextSize(16);videos.setChecked(prefs.getBoolean("show_videos",true));videos.setPadding(0,dp(5),0,dp(5));media.addView(videos);
+        MaterialSwitch photos=new MaterialSwitch(this);photos.setText("Show photos");photos.setTextColor(fg());photos.setTextSize(16);photos.setChecked(prefs.getBoolean("show_photos",true));photos.setPadding(0,dp(5),0,dp(5));media.addView(photos);
+        MaterialSwitch videos=new MaterialSwitch(this);videos.setText("Show videos");videos.setTextColor(fg());videos.setTextSize(16);videos.setChecked(prefs.getBoolean("show_videos",true));videos.setPadding(0,dp(5),0,dp(5));media.addView(videos);
         photos.setOnCheckedChangeListener((b,v)->{if(!v&&!videos.isChecked()){photos.setChecked(true);return;}prefs.edit().putBoolean("show_photos",v).apply();});
         videos.setOnCheckedChangeListener((b,v)->{if(!v&&!photos.isChecked()){videos.setChecked(true);return;}prefs.edit().putBoolean("show_videos",v).apply();});
         content.addView(media);
 
         content.addView(section("Behavior"));
         LinearLayout behavior=cardLayout();
-        Switch folders=new Switch(this);folders.setText("Remember folder view");folders.setTextColor(fg());folders.setTextSize(16);folders.setChecked(prefs.getBoolean("remember_folder_view",false));folders.setPadding(0,dp(5),0,dp(5));behavior.addView(folders);
+        MaterialSwitch folders=new MaterialSwitch(this);folders.setText("Remember folder view");folders.setTextColor(fg());folders.setTextSize(16);folders.setChecked(prefs.getBoolean("remember_folder_view",false));folders.setPadding(0,dp(5),0,dp(5));behavior.addView(folders);
         folders.setOnCheckedChangeListener((b,v)->prefs.edit().putBoolean("remember_folder_view",v).apply());
         TextView hint=tv("Swipe between media in the viewer. Pinch to zoom photos. Use the ⋮ menu for Edit and Details.",13);hint.setTextColor(muted());hint.setPadding(0,dp(10),0,dp(5));behavior.addView(hint);
         content.addView(behavior);
 
         content.addView(section("Reset"));
-        LinearLayout reset=cardLayout();Button rb=new Button(this);rb.setText("Reset gallery settings");rb.setAllCaps(false);rb.setTextSize(15);reset.addView(rb);
+        LinearLayout reset=cardLayout();MaterialButton rb=new MaterialButton(this);rb.setText("Reset gallery settings");rb.setAllCaps(false);rb.setTextSize(15);rb.setCornerRadius(dp(16));reset.addView(rb);
         rb.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Reset gallery settings?").setMessage("This restores appearance, grid, sorting, and visibility preferences. Your photos and videos are not changed.").setNegativeButton("Cancel",null).setPositiveButton("Reset",(d,w)->{prefs.edit().remove("theme").remove("columns").remove("sort").remove("show_photos").remove("show_videos").remove("remember_folder_view").apply();build();}).show());
         content.addView(reset);
 
-        scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
+        scroll.setClipToPadding(false);scroll.setPadding(0,0,0,dp(8));scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);ThemeUtils.insetRoot(root,dp(14),dp(10),dp(14),dp(18));
     }
     @Override protected void onResume(){super.onResume();if(root!=null)build();}
 }
