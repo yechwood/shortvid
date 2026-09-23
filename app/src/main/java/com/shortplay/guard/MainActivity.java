@@ -539,6 +539,7 @@ public class MainActivity extends Activity {
         SwipeFrameLayout(Context c){super(c);}
         void setOnSwipeListener(Listener l){listener=l;}
         @Override public boolean onInterceptTouchEvent(MotionEvent e){
+            if(viewerImage!=null && viewerImage.getVisibility()==View.VISIBLE) return false;
             if(e.getAction()==MotionEvent.ACTION_DOWN){sx=e.getX();sy=e.getY();tracking=true;return false;}
             if(e.getAction()==MotionEvent.ACTION_MOVE&&tracking){
                 float dx=e.getX()-sx,dy=e.getY()-sy;
