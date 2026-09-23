@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.view.*;
 import android.widget.*;
 import android.media.MediaMetadataRetriever;
+import androidx.exifinterface.media.ExifInterface;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -137,12 +138,12 @@ public class MainActivity extends Activity {
         box.addView(viewerImage,new FrameLayout.LayoutParams(-1,-1));
         viewerPlayer=new PlayerView(this);viewerPlayer.setUseController(true);viewerPlayer.setControllerAutoShow(true);viewerPlayer.setControllerHideOnTouch(true);viewerPlayer.setControllerShowTimeoutMs(2500);viewerPlayer.setResizeMode(androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT);viewerPlayer.setVisibility(View.GONE);box.addView(viewerPlayer,new FrameLayout.LayoutParams(-1,-1));
         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(8),dp(18),dp(8),0);top.setBackgroundColor(Color.argb(120,0,0,0));
-        Button back=smallButton("‹");viewerTitle=text("",13);viewerTitle.setGravity(Gravity.CENTER);viewerTitle.setSingleLine(true);Button edit=smallButton("Edit");top.addView(back,new LinearLayout.LayoutParams(dp(52),dp(48)));top.addView(viewerTitle,new LinearLayout.LayoutParams(0,dp(48),1));top.addView(edit,new LinearLayout.LayoutParams(dp(72),dp(42)));box.addView(top,new FrameLayout.LayoutParams(-1,dp(74),Gravity.TOP));
-        back.setOnClickListener(v->viewerDialog.dismiss());edit.setOnClickListener(v->{if(viewerIndex>=0&&!media.get(viewerIndex).video)openEditor(media.get(viewerIndex));});
-        viewerDialog.setContentView(box);viewerDialog.setOnDismissListener(v->{releaseViewerPlayer();restorePosition();});viewerDialog.show();showViewerItem(index);
+        Button back=smallButton("‹");viewerTitle=text("",13);viewerTitle.setGravity(Gravity.CENTER);viewerTitle.setSingleLine(true);Button more=smallButton("⋮");top.addView(back,new LinearLayout.LayoutParams(dp(52),dp(48)));top.addView(viewerTitle,new LinearLayout.LayoutParams(0,dp(48),1));top.addView(more,new LinearLayout.LayoutParams(dp(52),dp(42)));box.addView(top,new FrameLayout.LayoutParams(-1,dp(74),Gravity.TOP));
+        back.setOnClickListener(v->viewerDialog.dismiss());more.setOnClickListener(v->{if(viewerIndex>=0)showMediaDetails(media.get(viewerIndex));});
+        viewerDialog.setContentView(box);viewerDialog.setOnDismissListener(v->{releaseViewerPlayer();restorePosition();});viewerDialog.setOnShowListener(v->{viewerDialog.getWindow().getDecorView().setSystemUiVisibility(5894);});viewerDialog.show();viewerDialog.getWindow().getDecorView().setSystemUiVisibility(5894);showViewerItem(index);
     }
     void animateViewerTo(int n,boolean forward){if(viewerIndex<0)return;final float w=Math.max(1,viewerImage.getWidth());viewerImage.animate().translationX(forward?-w:w).setDuration(140).withEndAction(()->{viewerImage.setTranslationX(forward?w:-w);showViewerItem(n);viewerImage.animate().translationX(0).setDuration(190).setInterpolator(new android.view.animation.DecelerateInterpolator()).start();}).start();}
-    void showViewerItem(int i){if(viewerDialog==null||!viewerDialog.isShowing()||i<0||i>=media.size())return;viewerIndex=i;MediaItemData x=media.get(i);viewerTitle.setText((i+1)+" / "+media.size()+"  "+x.name);releaseViewerPlayer();viewerImage.setScale(1f,false);viewerImage.setTranslationX(0);viewerImage.setVisibility(x.video?View.GONE:View.VISIBLE);viewerPlayer.setVisibility(x.video?View.VISIBLE:View.GONE);if(x.video)startViewerVideo(x);else{viewerImage.setImageDrawable(null);new Thread(()->{try{Bitmap b=loadFullBitmap(x.uri);runOnUiThread(()->{if(viewerIndex==i)viewerImage.setImageBitmap(b);});}catch(Exception ignored){}}).start();}}
+    void showViewerItem(int i){if(viewerDialog==null||!viewerDialog.isShowing()||i<0||i>=media.size())return;viewerIndex=i;MediaItemData x=media.get(i);viewerTitle.setText(x.name);releaseViewerPlayer();viewerImage.setScale(1f,false);viewerImage.setTranslationX(0);viewerImage.setVisibility(x.video?View.GONE:View.VISIBLE);viewerPlayer.setVisibility(x.video?View.VISIBLE:View.GONE);if(x.video)startViewerVideo(x);else{viewerImage.setImageDrawable(null);new Thread(()->{try{Bitmap b=loadFullBitmap(x.uri);runOnUiThread(()->{if(viewerIndex==i)viewerImage.setImageBitmap(b);});}catch(Exception ignored){}}).start();}}
     void startViewerVideo(MediaItemData x){long limit=getMaxMs();if(x.duration<=0||x.duration>limit){toast("This video is over the "+format(limit)+" limit.");return;}new Thread(()->{VideoScreeningEngine.Result r=VideoScreeningEngine.screen(this,x.uri,x.duration,x.location,x.name,x.date,x.width,x.height,limit);runOnUiThread(()->{if(!r.allowed){toast(r.reason);return;}exoPlayer=new ExoPlayer.Builder(this).build();viewerPlayer.setPlayer(exoPlayer);exoPlayer.setMediaItem(MediaItem.fromUri(x.uri));exoPlayer.prepare();exoPlayer.play();});}).start();}
     void releaseViewerPlayer(){if(exoPlayer!=null){exoPlayer.release();exoPlayer=null;}if(viewerPlayer!=null)viewerPlayer.setPlayer(null);}
     Bitmap loadFullBitmap(Uri u)throws Exception{try(InputStream in=getContentResolver().openInputStream(u)){Bitmap b=BitmapFactory.decodeStream(in);if(b==null)throw new Exception();return b;}}
@@ -153,18 +154,48 @@ public class MainActivity extends Activity {
     void showEditor(){
         Dialog d=new Dialog(this,android.R.style.Theme_Material_NoActionBar_Fullscreen);FrameLayout box=new FrameLayout(this);box.setBackgroundColor(Color.BLACK);
         editorImage=new PhotoZoomView(this);editorImage.setScaleType(ImageView.ScaleType.FIT_CENTER);editorImage.setMinimumScale(1f);editorImage.setMediumScale(2.5f);editorImage.setMaximumScale(6f);editorImage.setZoomable(true);editorImage.setImageBitmap(editorBitmap);box.addView(editorImage,new FrameLayout.LayoutParams(-1,-1));
-        LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER);bar.setPadding(6,6,6,12);Button crop=smallButton("Crop"),rotate=smallButton("Rotate"),save=smallButton("Save"),cancel=smallButton("Cancel");bar.addView(crop,new LinearLayout.LayoutParams(0,dp(54),1));bar.addView(rotate,new LinearLayout.LayoutParams(0,dp(54),1));bar.addView(save,new LinearLayout.LayoutParams(0,dp(54),1));bar.addView(cancel,new LinearLayout.LayoutParams(0,dp(54),1));box.addView(bar,new FrameLayout.LayoutParams(-1,dp(76),Gravity.BOTTOM));
+        LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER);bar.setPadding(6,6,6,12);Button crop=smallButton("Crop"),rotate=smallButton("Rotate"),save=smallButton("Save crop"),cancel=smallButton("Cancel");bar.addView(crop,new LinearLayout.LayoutParams(0,dp(54),1));bar.addView(rotate,new LinearLayout.LayoutParams(0,dp(54),1));bar.addView(save,new LinearLayout.LayoutParams(0,dp(54),1));bar.addView(cancel,new LinearLayout.LayoutParams(0,dp(54),1));box.addView(bar,new FrameLayout.LayoutParams(-1,dp(76),Gravity.BOTTOM));
         crop.setOnClickListener(v->startCrop());rotate.setOnClickListener(v->{Matrix m=new Matrix();m.postRotate(90);editorBitmap=Bitmap.createBitmap(editorBitmap,0,0,editorBitmap.getWidth(),editorBitmap.getHeight(),m,true);editorImage.setImageBitmap(editorBitmap);editorImage.setScale(1f,false);});save.setOnClickListener(v->{saveEditedPhoto(editingItem,editorBitmap);d.dismiss();});cancel.setOnClickListener(v->d.dismiss());d.setContentView(box);d.show();
     }
     void startCrop(){
         try{
             File src=new File(getCacheDir(),"crop_source.jpg"),dst=new File(getCacheDir(),"crop_result_"+System.currentTimeMillis()+".jpg");
             try(FileOutputStream out=new FileOutputStream(src)){editorBitmap.compress(Bitmap.CompressFormat.JPEG,100,out);}
-            UCrop.Options o=new UCrop.Options();o.setCompressionQuality(98);o.setCompressionFormat(Bitmap.CompressFormat.JPEG);o.setFreeStyleCropEnabled(true);o.setShowCropGrid(true);o.setShowCropFrame(true);o.setAllowedGestures(UCropActivity.ALL,UCropActivity.ALL,UCropActivity.ALL);o.setToolbarTitle("Crop photo");o.setToolbarColor(Color.rgb(12,16,21));o.setStatusBarColor(Color.BLACK);o.setActiveControlsWidgetColor(Color.rgb(132,245,212));
+            UCrop.Options o=new UCrop.Options();o.setCompressionQuality(98);o.setCompressionFormat(Bitmap.CompressFormat.JPEG);o.setFreeStyleCropEnabled(true);o.setShowCropGrid(true);o.setShowCropFrame(true);o.setGridExpectedSize(100);o.setMaxScaleMultiplier(10f);o.setAllowedGestures(UCropActivity.ALL,UCropActivity.ALL,UCropActivity.ALL);o.setToolbarTitle("Adjust & crop");o.setToolbarColor(Color.rgb(12,16,21));o.setToolbarWidgetColor(Color.WHITE);o.setStatusBarColor(Color.rgb(7,13,20));o.setActiveControlsWidgetColor(Color.rgb(132,245,212));
             UCrop.of(Uri.fromFile(src),Uri.fromFile(dst)).withOptions(o).withMaxResultSize(8192,8192).start(this);
         }catch(Exception e){toast("Couldn't open the crop editor: "+e.getMessage());}
     }
-    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(requestCode==UCrop.REQUEST_CROP){if(resultCode==RESULT_OK){try{Uri u=UCrop.getOutput(data);editorBitmap=loadFullBitmap(u);if(editorImage!=null){editorImage.setImageBitmap(editorBitmap);editorImage.setScale(1f,false);}toast("Crop applied.");}catch(Exception e){toast("Couldn't apply the crop.");}}else if(resultCode==UCrop.RESULT_ERROR){Throwable e=UCrop.getError(data);toast("Crop failed"+(e==null?"":" : "+e.getMessage()));}}}
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(requestCode==UCrop.REQUEST_CROP){if(resultCode==RESULT_OK){try{Uri u=UCrop.getOutput(data);editorBitmap=loadFullBitmap(u);if(editorImage!=null){editorImage.setImageBitmap(editorBitmap);editorImage.setScale(1f,false);}toast("Crop applied. Tap “Save crop” to keep it.");}catch(Exception e){toast("Couldn't apply the crop.");}}else if(resultCode==UCrop.RESULT_ERROR){Throwable e=UCrop.getError(data);toast("Crop failed"+(e==null?"":" : "+e.getMessage()));}}}
+    void showMediaDetails(MediaItemData x){
+        if(x==null)return;
+        if(Build.VERSION.SDK_INT>=29 && !x.video && checkSelfPermission(Manifest.permission.ACCESS_MEDIA_LOCATION)!=PackageManager.PERMISSION_GRANTED){
+            pendingDetails=x;
+            requestPermissions(new String[]{Manifest.permission.ACCESS_MEDIA_LOCATION},19);
+            return;
+        }
+        showMediaDetailsNow(x);
+    }
+    MediaItemData pendingDetails;
+    void showMediaDetailsNow(MediaItemData x){
+        final LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(22),dp(10),dp(22),dp(6));
+        TextView title=text("Details",22);title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);title.setTextColor(themeText());box.addView(title);
+        TextView info=text("",14);info.setTextColor(themeText());info.setPadding(0,dp(12),0,dp(4));box.addView(info);
+        new Thread(()->{
+            String location="Not available";
+            String date=new java.text.SimpleDateFormat("MMM d, yyyy • h:mm a",Locale.US).format(new Date(x.date*1000L));
+            long size=0;
+            try{android.database.Cursor q=getContentResolver().query(x.uri,new String[]{MediaStore.MediaColumns.SIZE},null,null,null);if(q!=null){if(q.moveToFirst())size=q.getLong(0);q.close();}}catch(Exception ignored){}
+            if(x.video){
+                try{MediaMetadataRetriever r=new MediaMetadataRetriever();r.setDataSource(this,x.uri);String l=r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_LOCATION);if(l!=null&&!l.isEmpty())location=l;r.release();}catch(Exception ignored){}
+            }else{
+                try{Uri u=x.uri;if(Build.VERSION.SDK_INT>=29)u=MediaStore.setRequireOriginal(u);try(InputStream in=getContentResolver().openInputStream(u)){if(in!=null){ExifInterface e=new ExifInterface(in);double[] ll=e.getLatLong();if(ll!=null)location=String.format(Locale.US,"%.6f, %.6f",ll[0],ll[1]);}}}catch(Exception ignored){}
+            }
+            final String loc=location;final long bytes=size;
+            runOnUiThread(()->info.setText("Name\n"+x.name+"\n\nFolder\n"+x.folder+"\n\nDimensions\n"+x.width+" × "+x.height+(x.video?"\n\nDuration\n"+formatDuration(x.duration):"")+"\n\nSize\n"+formatBytes(bytes)+"\n\nDate\n"+date+"\n\nLocation\n"+loc));
+        }).start();
+        new AlertDialog.Builder(this).setView(box).setPositiveButton("Done",null).show();
+    }
+    String formatBytes(long b){if(b<=0)return "Unknown";if(b<1024*1024)return (b/1024)+" KB";if(b<1024*1024*1024)return String.format(Locale.US,"%.1f MB",b/1048576d);return String.format(Locale.US,"%.2f GB",b/1073741824d);}
     void saveEditedPhoto(MediaItemData original,Bitmap b){new Thread(()->{try{String n="ShortVid_"+System.currentTimeMillis()+"_"+original.name.replaceAll("[^a-zA-Z0-9._-]","_");ContentValues cv=new ContentValues();cv.put(MediaStore.Images.Media.DISPLAY_NAME,n);cv.put(MediaStore.Images.Media.MIME_TYPE,"image/jpeg");if(Build.VERSION.SDK_INT>=29)cv.put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/ShortVid");Uri out=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,cv);if(out==null)throw new Exception();try(OutputStream os=getContentResolver().openOutputStream(out)){b.compress(Bitmap.CompressFormat.JPEG,96,os);}runOnUiThread(()->{toast("Saved to Pictures/ShortVid.");loadClips();render();});}catch(Exception e){runOnUiThread(()->toast("Couldn't save the edited picture."));}}).start();}
 
     void moveSelected(){
@@ -214,7 +245,7 @@ public class MainActivity extends Activity {
     String format(long ms){long sec=Math.max(0,ms/1000),m=sec/60,h=m/60;return h>0?h+"h "+m%60+"m":m+"m";}
     String formatDuration(long ms){long sec=Math.max(0,ms/1000);return String.format(Locale.US,"%d:%02d",(sec/60)%60,sec%60);}
     void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
-    @Override public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==7)showHome();}
+    @Override public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==7)showHome();if(r==19&&pendingDetails!=null){MediaItemData x=pendingDetails;pendingDetails=null;if(g.length>0&&g[0]==PackageManager.PERMISSION_GRANTED)showMediaDetailsNow(x);else showMediaDetailsNow(x);}}
 
     static class MediaItemData{Uri uri;String name,folder,location;boolean video;long duration,date;int width,height;MediaItemData(Uri u,String n,boolean v,long d,long da,String f,int w,int h){uri=u;name=n;video=v;duration=d;date=da;folder=f;location=f;width=w;height=h;}}
     static class PhotoZoomView extends com.github.chrisbanes.photoview.PhotoView{
