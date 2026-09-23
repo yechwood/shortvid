@@ -14,12 +14,15 @@ import com.google.android.material.color.MaterialColors;
 final class ThemeUtils {
     private ThemeUtils() {}
 
-    static void apply(Activity a) {
+    static void applyNightMode(Activity a) {
         SharedPreferences p=a.getSharedPreferences("guard",Context.MODE_PRIVATE);
         int t=p.getInt("theme",2);
         if(t==1) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         else if(t==0) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
         else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+    }
+
+    static void applyWindow(Activity a) {
         WindowCompat.enableEdgeToEdge(a.getWindow());
         if(android.os.Build.VERSION.SDK_INT>=29) a.getWindow().setNavigationBarContrastEnforced(false);
     }
