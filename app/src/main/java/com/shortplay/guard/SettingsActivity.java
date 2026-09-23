@@ -93,5 +93,4 @@ public class SettingsActivity extends AppCompatActivity {
 
         scroll.setClipToPadding(false);scroll.setPadding(0,0,0,dp(8));scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);ThemeUtils.insetRoot(root,dp(14),dp(10),dp(14),dp(18));
     }
-    @Override protected void onResume(){super.onResume();if(root!=null && !isFinishing())build();}
 }
