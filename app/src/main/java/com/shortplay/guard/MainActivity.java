@@ -43,7 +43,7 @@ public class MainActivity extends Activity {
     long lastTap; float lastTapX;
     Dialog viewerDialog;
     SwipeFrameLayout viewerBox;
-    ImageView viewerImage;
+    com.github.chrisbanes.photoview.PhotoView viewerImage;
     PlayerView viewerPlayer;
     TextView viewerTitle;
     int viewerIndex = -1;
