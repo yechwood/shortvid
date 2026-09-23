@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.view.*;
 import android.view.ScaleGestureDetector;
