@@ -52,6 +52,7 @@ public class MainActivity extends Activity {
     ImageView pendingCropImage;
     float viewerDownX;
     boolean viewerTouchTracking;
+    boolean viewerAnimating;
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
@@ -335,6 +336,20 @@ public class MainActivity extends Activity {
         b.setAllCaps(false);
         b.setBackground(rounded(Color.argb(175,35,42,50),18));
         return b;
+    }
+
+    void animateGallerySwipe(int nextIndex, boolean forward) {
+        if(viewerAnimating) return;
+        viewerAnimating=true;
+        final float width=Math.max(1, viewerImage.getWidth());
+        viewerImage.animate().translationX(forward ? -width : width).setDuration(170)
+                .withEndAction(()->{
+                    viewerImage.setTranslationX(forward ? width : -width);
+                    showViewerItem(nextIndex);
+                    viewerImage.animate().translationX(0).setDuration(210)
+                            .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                            .withEndAction(()->viewerAnimating=false).start();
+                }).setInterpolator(new android.view.animation.AccelerateInterpolator()).start();
     }
 
     void showViewerItem(int index) {
