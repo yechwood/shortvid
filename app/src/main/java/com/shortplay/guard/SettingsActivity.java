@@ -54,7 +54,7 @@ public class SettingsActivity extends AppCompatActivity {
         content.addView(section("Appearance"));
         LinearLayout appearance=cardLayout();
         appearance.addView(tv("Theme",17));appearance.addView(desc("Choose how ShortVid looks."));
-        RadioGroup tg=new RadioGroup(this);String[] themes={"Dark","Light","System"};int savedTheme=prefs.getInt("theme",0);
+        RadioGroup tg=new RadioGroup(this);String[] themes={"Dark","Light","System"};int savedTheme=prefs.getInt("theme",2);
         for(int i=0;i<themes.length;i++){MaterialRadioButton r=new MaterialRadioButton(this);r.setText(themes[i]);r.setTextColor(fg());r.setTextSize(15);r.setPadding(0,dp(4),0,dp(4));r.setTag(i);tg.addView(r);if(i==savedTheme)r.setChecked(true);}
         tg.setOnCheckedChangeListener((g,id)->{View v=g.findViewById(id);if(v!=null){int value=(Integer)v.getTag();prefs.edit().putInt("theme",value).apply();ThemeUtils.applyNightMode(this);}});
         appearance.addView(tg);content.addView(appearance);
