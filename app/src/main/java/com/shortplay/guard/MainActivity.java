@@ -22,6 +22,9 @@ import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.core.view.WindowCompat;
 import com.yalantis.ucrop.UCrop;
 import com.yalantis.ucrop.UCropActivity;
 import java.io.*;
@@ -140,7 +143,7 @@ public class MainActivity extends AppCompatActivity {
 
     void openViewer(int index){
         savedPosition();
-        viewerIndex=index;viewerDialog=new Dialog(this,android.R.style.Theme_Material_NoActionBar_Fullscreen);
+        viewerIndex=index;viewerDialog=new Dialog(this,R.style.ViewerTheme);
         FrameLayout box=new FrameLayout(this);box.setBackgroundColor(Color.BLACK);
         viewerImage=new PhotoZoomView(this);viewerImage.setScaleType(ImageView.ScaleType.FIT_CENTER);viewerImage.setMinimumScale(1f);viewerImage.setMediumScale(2.5f);viewerImage.setMaximumScale(6f);viewerImage.setZoomable(true);
         viewerImage.setSwipeCallback(dx->{if(viewerImage.getScale()>1.05f)return;if(Math.abs(dx)>dp(70)){int n=dx<0?viewerIndex+1:viewerIndex-1;if(n>=0&&n<media.size())animateViewerTo(n,dx<0);}});
@@ -149,8 +152,9 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(8),dp(18),dp(8),0);top.setBackgroundColor(Color.argb(120,0,0,0));
         Button back=smallButton("‹");viewerTitle=text("",13);viewerTitle.setGravity(Gravity.CENTER);viewerTitle.setSingleLine(true);Button more=smallButton("⋮");top.addView(back,new LinearLayout.LayoutParams(dp(52),dp(48)));top.addView(viewerTitle,new LinearLayout.LayoutParams(0,dp(48),1));top.addView(more,new LinearLayout.LayoutParams(dp(52),dp(42)));box.addView(top,new FrameLayout.LayoutParams(-1,dp(74),Gravity.TOP));
         back.setOnClickListener(v->viewerDialog.dismiss());more.setOnClickListener(v->{if(viewerIndex>=0)showMediaMenu(media.get(viewerIndex));});
-        viewerDialog.setContentView(box);viewerDialog.setOnDismissListener(v->{releaseViewerPlayer();restorePosition();});viewerDialog.setOnShowListener(v->{viewerDialog.getWindow().getDecorView().setSystemUiVisibility(5894);});viewerDialog.show();viewerDialog.getWindow().getDecorView().setSystemUiVisibility(5894);showViewerItem(index);
+        viewerDialog.setContentView(box);viewerDialog.setOnDismissListener(v->{releaseViewerPlayer();restorePosition();});viewerDialog.setOnShowListener(v->{immersive(viewerDialog);});viewerDialog.show();immersive(viewerDialog);showViewerItem(index);
     }
+    void immersive(Dialog d){ if(d==null||d.getWindow()==null)return; WindowCompat.enableEdgeToEdge(d.getWindow()); WindowInsetsControllerCompat ctl=WindowCompat.getInsetsController(d.getWindow(),d.getWindow().getDecorView()); ctl.hide(WindowInsetsCompat.Type.systemBars()); ctl.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE); }
     void animateViewerTo(int n,boolean forward){if(viewerIndex<0)return;final float w=Math.max(1,viewerImage.getWidth());viewerImage.animate().translationX(forward?-w:w).setDuration(140).withEndAction(()->{viewerImage.setTranslationX(forward?w:-w);showViewerItem(n);viewerImage.animate().translationX(0).setDuration(190).setInterpolator(new android.view.animation.DecelerateInterpolator()).start();}).start();}
     void showViewerItem(int i){if(viewerDialog==null||!viewerDialog.isShowing()||i<0||i>=media.size())return;viewerIndex=i;MediaItemData x=media.get(i);viewerTitle.setText(x.name);releaseViewerPlayer();viewerImage.setScale(1f,false);viewerImage.setTranslationX(0);viewerImage.setVisibility(x.video?View.GONE:View.VISIBLE);viewerPlayer.setVisibility(x.video?View.VISIBLE:View.GONE);if(x.video)startViewerVideo(x);else{viewerImage.setImageDrawable(null);new Thread(()->{try{Bitmap b=loadFullBitmap(x.uri);runOnUiThread(()->{if(viewerIndex==i)viewerImage.setImageBitmap(b);});}catch(Exception ignored){}}).start();}}
     void startViewerVideo(MediaItemData x){long limit=getMaxMs();if(x.duration<=0||x.duration>limit){toast("This video is over the "+format(limit)+" limit.");return;}new Thread(()->{VideoScreeningEngine.Result r=VideoScreeningEngine.screen(this,x.uri,x.duration,x.location,x.name,x.date,x.width,x.height,limit);runOnUiThread(()->{if(!r.allowed){toast(r.reason);return;}exoPlayer=new ExoPlayer.Builder(this).build();viewerPlayer.setPlayer(exoPlayer);exoPlayer.setMediaItem(MediaItem.fromUri(x.uri));exoPlayer.prepare();exoPlayer.play();});}).start();}
