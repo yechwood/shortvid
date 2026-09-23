@@ -45,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     TextView viewerTitle;
     int viewerIndex=-1;
     boolean selectionMode=false;
+    boolean refreshAfterSettings=false;
     String currentFolder=null;
     boolean folderMode=false;
     Bitmap editorBitmap;
@@ -257,7 +258,8 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    void openSettings(){ startActivity(new Intent(this,SettingsActivity.class)); }
+    void openSettings(){ refreshAfterSettings=true; startActivity(new Intent(this,SettingsActivity.class)); }
+    @Override protected void onResume(){ super.onResume(); if(refreshAfterSettings && prefs!=null){ refreshAfterSettings=false; showHome(); } }
     TextView label(String s){TextView t=text(s,12);t.setTextColor(Color.GRAY);t.setPadding(0,dp(10),0,0);return t;}
     void applyFilters(){sortMedia();}
     Button smallButton(String s){MaterialButton b=new MaterialButton(this);b.setText(s);b.setTextSize(12);b.setAllCaps(false);b.setMinHeight(dp(44));b.setMinimumHeight(dp(44));b.setInsetTop(0);b.setInsetBottom(0);b.setCornerRadius(dp(16));b.setContentPadding(dp(10),0,dp(10),0);b.setStateListAnimator(null);b.setContentDescription(s);return b;}
