@@ -161,7 +161,7 @@ public class MainActivity extends Activity {
         try{
             File src=new File(getCacheDir(),"crop_source.jpg"),dst=new File(getCacheDir(),"crop_result_"+System.currentTimeMillis()+".jpg");
             try(FileOutputStream out=new FileOutputStream(src)){editorBitmap.compress(Bitmap.CompressFormat.JPEG,100,out);}
-            UCrop.Options o=new UCrop.Options();o.setCompressionQuality(98);o.setCompressionFormat(Bitmap.CompressFormat.JPEG);o.setFreeStyleCropEnabled(true);o.setShowCropGrid(true);o.setShowCropFrame(true);o.setGridExpectedSize(100);o.setMaxScaleMultiplier(10f);o.setAllowedGestures(UCropActivity.ALL,UCropActivity.ALL,UCropActivity.ALL);o.setToolbarTitle("Adjust & crop");o.setToolbarColor(Color.rgb(12,16,21));o.setToolbarWidgetColor(Color.WHITE);o.setStatusBarColor(Color.rgb(7,13,20));o.setActiveControlsWidgetColor(Color.rgb(132,245,212));
+            UCrop.Options o=new UCrop.Options();o.setCompressionQuality(98);o.setCompressionFormat(Bitmap.CompressFormat.JPEG);o.setFreeStyleCropEnabled(true);o.setShowCropGrid(true);o.setShowCropFrame(true);o.setMaxScaleMultiplier(10f);o.setAllowedGestures(UCropActivity.ALL,UCropActivity.ALL,UCropActivity.ALL);o.setToolbarTitle("Adjust & crop");o.setToolbarColor(Color.rgb(12,16,21));o.setToolbarWidgetColor(Color.WHITE);o.setStatusBarColor(Color.rgb(7,13,20));o.setActiveControlsWidgetColor(Color.rgb(132,245,212));
             UCrop.of(Uri.fromFile(src),Uri.fromFile(dst)).withOptions(o).withMaxResultSize(8192,8192).start(this);
         }catch(Exception e){toast("Couldn't open the crop editor: "+e.getMessage());}
     }
