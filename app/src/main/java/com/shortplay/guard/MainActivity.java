@@ -180,16 +180,16 @@ public class MainActivity extends AppCompatActivity {
         box.setPadding(dp(18),dp(8),dp(18),dp(8));
         TextView title=text(x.name,19); title.setTextColor(themeText()); title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         box.addView(title,new LinearLayout.LayoutParams(-1,dp(48)));
+        MaterialButton edit=null;
         if(!x.video){
-            Button edit=new Button(this); edit.setText("Edit photo"); edit.setAllCaps(false); edit.setTextSize(15);
+            edit=new MaterialButton(this); edit.setText("Edit photo"); edit.setAllCaps(false); edit.setTextSize(15); edit.setCornerRadius(dp(14));
             box.addView(edit,new LinearLayout.LayoutParams(-1,dp(52)));
-            edit.setOnClickListener(v->{openEditor(x);});
         }
-        Button details=new Button(this); details.setText("Details"); details.setAllCaps(false); details.setTextSize(15);
+        MaterialButton details=new MaterialButton(this); details.setText("Details"); details.setAllCaps(false); details.setTextSize(15); details.setCornerRadius(dp(14));
         box.addView(details,new LinearLayout.LayoutParams(-1,dp(52)));
         final Dialog menu=new AlertDialog.Builder(this).setView(box).create();
         details.setOnClickListener(v->{menu.dismiss();showMediaDetails(x);});
-        if(!x.video) edit.setOnClickListener(v->{menu.dismiss();openEditor(x);});
+        if(edit!=null) edit.setOnClickListener(v->{menu.dismiss();openEditor(x);});
         menu.show();
     }
 
