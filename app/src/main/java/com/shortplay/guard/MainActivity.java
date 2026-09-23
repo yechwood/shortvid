@@ -190,7 +190,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this).setView(box).setPositiveButton("Apply",(d,w)->{int ci=cs.getSelectedItemPosition();prefs.edit().putInt("columns",ci).putString("sort",ss.getSelectedItemPosition()==1?"oldest":ss.getSelectedItemPosition()==2?"name":"newest").putBoolean("show_videos",showV.isChecked()).putBoolean("show_photos",showP.isChecked()).apply();applyFilters();showHome();}).setNegativeButton("Cancel",null).show();
     }
     TextView label(String s){TextView t=text(s,12);t.setTextColor(Color.GRAY);t.setPadding(0,dp(10),0,0);return t;}
-    void applyFilters(){for(Iterator<MediaItemData>it=media.iterator();it.hasNext();){MediaItemData x=it.next();if((x.video&&!prefs.getBoolean("show_videos",true))||(!x.video&&!prefs.getBoolean("show_photos",true)))it.remove();}sortMedia();}
+    void applyFilters(){sortMedia();}
     Button smallButton(String s){Button b=new Button(this);b.setText(s);b.setTextSize(11);b.setTextColor(Color.WHITE);b.setAllCaps(false);b.setBackground(rounded(Color.argb(175,35,42,50),18));return b;}
     String format(long ms){long sec=Math.max(0,ms/1000),m=sec/60,h=m/60;return h>0?h+"h "+m%60+"m":m+"m";}
     String formatDuration(long ms){long sec=Math.max(0,ms/1000);return String.format(Locale.US,"%d:%02d",(sec/60)%60,sec%60);}
