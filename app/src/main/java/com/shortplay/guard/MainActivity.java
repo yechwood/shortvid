@@ -147,7 +147,7 @@ public class MainActivity extends Activity {
     void releaseViewerPlayer(){if(exoPlayer!=null){exoPlayer.release();exoPlayer=null;}if(viewerPlayer!=null)viewerPlayer.setPlayer(null);}
     Bitmap loadFullBitmap(Uri u)throws Exception{try(InputStream in=getContentResolver().openInputStream(u)){Bitmap b=BitmapFactory.decodeStream(in);if(b==null)throw new Exception();return b;}}
     void savedPosition(){if(gallery==null)return;RecyclerView.LayoutManager lm=gallery.getLayoutManager();if(lm instanceof GridLayoutManager){savedFirst=((GridLayoutManager)lm).findFirstVisibleItemPosition();View v=gallery.getChildAt(0);savedOffset=v==null?0:v.getTop();}}
-    void restorePosition(){if(gallery==null||savedFirst<0)return;gallery.post(()->{if(gallery.getLayoutManager()!=null)gallery.getLayoutManager().scrollToPositionWithOffset(savedFirst,savedOffset);});}
+    void restorePosition(){if(gallery==null||savedFirst<0)return;gallery.post(()->{if(gallery.getLayoutManager() instanceof GridLayoutManager)((GridLayoutManager)gallery.getLayoutManager()).scrollToPositionWithOffset(savedFirst,savedOffset);});}
 
     void openEditor(MediaItemData item){editingItem=item;new Thread(()->{try{editorBitmap=loadFullBitmap(item.uri);runOnUiThread(this::showEditor);}catch(Exception e){runOnUiThread(()->toast("Couldn't load this picture."));}}).start();}
     void showEditor(){
@@ -197,7 +197,7 @@ public class MainActivity extends Activity {
     void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     @Override public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==7)showHome();}
 
-    static class MediaItemData{Uri uri;String name,folder;boolean video;long duration,date;int width,height;MediaItemData(Uri u,String n,boolean v,long d,long da,String f,int w,int h){uri=u;name=n;video=v;duration=d;date=da;folder=f;width=w;height=h;}}
+    static class MediaItemData{Uri uri;String name,folder,location;boolean video;long duration,date;int width,height;MediaItemData(Uri u,String n,boolean v,long d,long da,String f,int w,int h){uri=u;name=n;video=v;duration=d;date=da;folder=f;location=f;width=w;height=h;}}
     static class PhotoZoomView extends com.github.chrisbanes.photoview.PhotoView{
         float sx;boolean tracking;SwipeCallback callback;PhotoZoomView(Context c){super(c);}
         void setSwipeCallback(SwipeCallback c){callback=c;}
