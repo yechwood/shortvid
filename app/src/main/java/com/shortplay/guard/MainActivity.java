@@ -38,7 +38,7 @@ public class MainActivity extends Activity {
     long gesturePillUntil;
     float downX, downY;
     boolean gestureMoved;
-    long lastTap, lastTapX;
+    long lastTap; float lastTapX;
     Dialog viewerDialog;
     SwipeFrameLayout viewerBox;
     ImageView viewerImage;
