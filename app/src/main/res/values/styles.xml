@@ -13,4 +13,10 @@
         <item name="colorTertiary">#E8B9FF</item>
         <item name="android:windowNoTitle">true</item>
     </style>
+    <style name="ViewerTheme" parent="Theme.Material3Expressive.DynamicColors.DayNight.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">#000000</item>
+    </style>
 </resources>
