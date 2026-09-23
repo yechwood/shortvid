@@ -12,14 +12,14 @@
         android:roundIcon="@drawable/ic_shortvid"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
-        <activity android:name=".SettingsActivity" android:screenOrientation="portrait" />
+        <activity android:name=".SettingsActivity" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".AdminActivity" android:exported="false" />
+        <activity android:name=".AdminActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name="com.yalantis.ucrop.UCropActivity" android:screenOrientation="portrait" android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
         <receiver android:name=".SecretCodeReceiver" android:exported="true">
             <intent-filter>
